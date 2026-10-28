@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { normalizePhoneDigits } from "./phone";
-import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, primaryKey, index, numeric, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, primaryKey, index, numeric, serial, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -521,7 +521,11 @@ export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profil
   // A lead/company can have multiple radius variations of the same scan.
   // reportKey identifies the immutable Local Falcon report; placeId identifies
   // the scanned business and is intentionally reusable across later batches.
-  leadId: varchar("lead_id").notNull().references(() => crmLeads.id, { onDelete: "cascade" }),
+  // Competitor scans belong to no lead (leadId is null); lead reports point to
+  // one through competitorReportId, so one competitor scan can serve many leads.
+  leadId: varchar("lead_id").references(() => crmLeads.id, { onDelete: "cascade" }),
+  scanRole: text("scan_role").notNull().default("lead"),
+  competitorReportId: varchar("competitor_report_id").references((): AnyPgColumn => localFalconProspectProfiles.id, { onDelete: "set null" }),
   placeId: text("place_id").notNull(),
   companyName: text("company_name"),
   address: text("address"),
@@ -584,6 +588,7 @@ export const localFalconProspectProfiles = pgTable("local_falcon_prospect_profil
   index("lf_profiles_scan_date_idx").on(t.scanDate),
   index("lf_profiles_tier_idx").on(t.tier),
   index("lf_profiles_pitch_type_idx").on(t.pitchType),
+  index("lf_profiles_competitor_report_idx").on(t.competitorReportId),
 ]);
 
 export const localFalconCompetitorStandings = pgTable("local_falcon_competitor_standings", {

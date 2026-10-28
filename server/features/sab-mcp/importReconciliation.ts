@@ -18,12 +18,12 @@ export async function reconcileSabImportBatch(batchId:string, expected:SabImport
   const placeIds=expected.map(row=>row.place_id);
   const [deliverables, crmOnly] = await Promise.all([
     db.select({
-      place_id:localFalconProspectProfiles.placeId,lead_id:localFalconProspectProfiles.leadId,
+      place_id:localFalconProspectProfiles.placeId,lead_id:sql<string>`${localFalconProspectProfiles.leadId}`,
       company_name:localFalconProspectProfiles.companyName,address:localFalconProspectProfiles.address,
       report_key:localFalconProspectProfiles.reportKey,batch_id:localFalconImportBatches.batchId,
     }).from(localFalconProspectProfiles)
       .innerJoin(localFalconImportBatches,eq(localFalconProspectProfiles.batchRecordId,localFalconImportBatches.id))
-      .where(and(inArray(localFalconProspectProfiles.placeId,placeIds),eq(localFalconImportBatches.batchId,batchId))),
+      .where(and(inArray(localFalconProspectProfiles.placeId,placeIds),eq(localFalconImportBatches.batchId,batchId),eq(localFalconProspectProfiles.scanRole,"lead"))),
     db.select({
       place_id:localFalconCrmOnlyProspects.placeId,lead_id:localFalconCrmOnlyProspects.leadId,
       company_name:localFalconCrmOnlyProspects.companyName,address:crmCompanies.address,

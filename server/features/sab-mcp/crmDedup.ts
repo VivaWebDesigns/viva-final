@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   localFalconImportBatches,
   localFalconCrmOnlyProspects,
@@ -70,7 +70,7 @@ export async function checkCrmPlaceIds(
     db
       .select({
         place_id: localFalconProspectProfiles.placeId,
-        lead_id: localFalconProspectProfiles.leadId,
+        lead_id: sql<string>`${localFalconProspectProfiles.leadId}`,
         company_name: localFalconProspectProfiles.companyName,
         batch_id: localFalconImportBatches.batchId,
         report_key: localFalconProspectProfiles.reportKey,
@@ -82,7 +82,10 @@ export async function checkCrmPlaceIds(
         localFalconImportBatches,
         eq(localFalconProspectProfiles.batchRecordId, localFalconImportBatches.id),
       )
-      .where(inArray(localFalconProspectProfiles.placeId, uniquePlaceIds))
+      .where(and(
+        inArray(localFalconProspectProfiles.placeId, uniquePlaceIds),
+        eq(localFalconProspectProfiles.scanRole, "lead"),
+      ))
       .orderBy(desc(localFalconProspectProfiles.createdAt)),
     db.select({
       place_id: localFalconCrmOnlyProspects.placeId,

@@ -22,15 +22,20 @@ import {
   importLeadsFromCSV, importContactsFromCSV,
 } from "./csvImportExport";
 import {
+  findBatchEntry,
   getProspectScanSpec,
+  isCompetitorScan,
   isDeliverableProspect,
   isNoVisibilityProspect,
+  isSelectedPreviewRow,
+  mappedScans,
+  previewRowNeedsMap,
   getLocalFalconProfileForLead,
   getLocalFalconCrmOnlyForLead,
   importLocalFalconPayload,
   previewLocalFalconImport,
-  type DeliverableProspectInput,
   type LocalFalconPayload,
+  type MappedScanInput,
   type LocalFalconUploadedAsset,
 } from "./localFalconImport";
 import {
@@ -474,7 +479,7 @@ function sendLocalFalconImportError(res: express.Response, error: any) {
 
 function localFalconReportData(
   payload: LocalFalconPayload,
-  prospect: DeliverableProspectInput,
+  prospect: MappedScanInput,
   heatmapImageUrl: string,
 ) {
   return {
@@ -519,8 +524,8 @@ router.post(
           manifestSha256,
           sourceMode: supplemental.length ? "fallback" : "local_falcon",
           rows: preview.rows.map((row) => {
-            const prospect = payload.prospects.find((candidate) => candidate.place_id === row.placeId)!;
-            if (isNoVisibilityProspect(prospect)) return {
+            const prospect = findBatchEntry(payload, row.placeId)!;
+            if (!isCompetitorScan(prospect) && isNoVisibilityProspect(prospect)) return {
               ...row, heatmapPreviewDataUrl: null, heatmapSha256: null, heatmapSourceUrl: null,
               mapPresentation: null, reportData: null,
             };
@@ -533,15 +538,15 @@ router.post(
       }
       const parsedPackage = await parseLocalFalconPackage(primary, supplemental, fetch);
       const manifestSha256 = localFalconManifestSha256(primary);
-      await hydrateReportAtrp(parsedPackage.payload.prospects.filter(isDeliverableProspect));
+      await hydrateReportAtrp(mappedScans(parsedPackage.payload));
       const preview = await previewLocalFalconImport(parsedPackage.payload);
       res.json({
         ...preview,
         manifestSha256,
         sourceMode: parsedPackage.sourceMode,
         rows: preview.rows.map((row) => {
-          const prospect = parsedPackage.payload.prospects.find((candidate) => candidate.place_id === row.placeId)!;
-          if (isNoVisibilityProspect(prospect)) return {
+          const prospect = findBatchEntry(parsedPackage.payload, row.placeId)!;
+          if (!isCompetitorScan(prospect) && isNoVisibilityProspect(prospect)) return {
             ...row, heatmapPreviewDataUrl: null, heatmapSha256: null, heatmapSourceUrl: null,
             mapPresentation: null, reportData: null,
           };
@@ -582,8 +587,8 @@ router.post(
         placeId,
         fetch,
       );
-      const prospect = payload.prospects.find((candidate) => candidate.place_id === placeId);
-      if (!prospect || !isDeliverableProspect(prospect)) throw new Error(`Place ID ${placeId} has no deliverable map`);
+      const prospect = findBatchEntry(payload, placeId);
+      if (!prospect || (!isCompetitorScan(prospect) && !isDeliverableProspect(prospect))) throw new Error(`Place ID ${placeId} has no deliverable map`);
       await hydrateReportAtrp([prospect]);
       const manifestSha256 = localFalconManifestSha256(primary);
       const verifiedAsset = cacheVerifiedHeatmap(manifestSha256, prospect, heatmap);
@@ -617,9 +622,10 @@ router.post(
         return res.status(409).json({ message: "Reload and review the import using the all-point ATRP report before confirming." });
       }
       const assignedTo = z.string().optional().default("").parse(req.body.assignedTo);
-      const leadClassification = z.enum(LOCAL_FALCON_LEAD_CLASSIFICATION_VALUES).parse(
-        req.body.leadClassification,
-      ) as LocalFalconLeadClassification;
+      // Optional only for competitor-only batches; importLocalFalconPayload requires it for leads.
+      const leadClassification = (z.enum(LOCAL_FALCON_LEAD_CLASSIFICATION_VALUES).optional().parse(
+        req.body.leadClassification || undefined,
+      ) ?? null) as LocalFalconLeadClassification | null;
       const approvedFlagged = z.array(z.string()).parse(JSON.parse(req.body.approvedFlaggedPlaceIds || "[]"));
       const previewHeatmapChecksums = z.record(
         z.string(),
@@ -637,14 +643,14 @@ router.post(
       const { primary } = packageFiles(req);
       const payload = parseLocalFalconManifest(primary);
       const manifestSha256 = localFalconManifestSha256(primary);
-      await hydrateReportAtrp(payload.prospects.filter(isDeliverableProspect));
+      await hydrateReportAtrp(mappedScans(payload));
       const preview = await previewLocalFalconImport(payload);
       const heatmapsByPlaceId = new Map();
-      const prospectsByPlaceId = new Map(payload.prospects.map((candidate) => [candidate.place_id, candidate]));
-      for (const row of preview.rows.filter((candidate) => candidate.prospectOutcome !== "no_visibility_core_found")) {
+      const prospectsByPlaceId = new Map(mappedScans(payload).map((candidate) => [candidate.place_id, candidate]));
+      for (const row of preview.rows.filter(previewRowNeedsMap)) {
         const prospect = prospectsByPlaceId.get(row.placeId);
         const reference = verifiedMapAssets[row.placeId];
-        if (!prospect || !isDeliverableProspect(prospect) || !reference) {
+        if (!prospect || !reference) {
           throw new Error(`The verified map for ${row.companyName} is missing or expired. Review the preview again.`);
         }
         heatmapsByPlaceId.set(row.placeId, resolveVerifiedHeatmap(reference, {
@@ -655,19 +661,14 @@ router.post(
       }
       const approvedFlaggedSet = new Set(approvedFlagged);
       const confirmedCrmOnly = new Set(z.array(z.string()).parse(JSON.parse(req.body.confirmedCrmOnlyPlaceIds || "[]")));
-      const selectedRows = preview.rows.filter(
-        (row) =>
-          row.outcome === "new"
-          || row.outcome === "variation"
-          || (row.outcome === "flagged" && approvedFlaggedSet.has(row.placeId)),
-      );
+      const selectedRows = preview.rows.filter((row) => isSelectedPreviewRow(row, approvedFlaggedSet));
       if (selectedRows.length === 0) {
         throw new Error("No new leads or scan reports were selected for import");
       }
       for (const row of selectedRows.filter((row) => row.prospectOutcome === "no_visibility_core_found")) {
         if (!confirmedCrmOnly.has(row.placeId)) throw new Error(`Review and confirm the CRM-only market reference for ${row.companyName} before importing.`);
       }
-      if (selectedRows.length > 0) {
+      if (selectedRows.some((row) => row.outcome !== "competitor" && row.outcome !== "link")) {
         const assignableUsers = await crmStorage.getAssignableUsers();
         const setter = assignableUsers.find((candidate) => candidate.id === assignedTo && candidate.role === "sales_rep");
         if (!setter) return res.status(400).json({ message: "Select an active appointment setter before importing" });
@@ -679,7 +680,7 @@ router.post(
           snapshot,
         ]),
       );
-      for (const row of selectedRows.filter((row) => row.prospectOutcome !== "no_visibility_core_found")) {
+      for (const row of selectedRows.filter(previewRowNeedsMap)) {
         const confirmedChecksum = previewHeatmapChecksums[row.placeId];
         const currentChecksum = heatmapsByPlaceId.get(row.placeId)?.sha256;
         if (!confirmedChecksum || confirmedChecksum !== currentChecksum) {
@@ -696,7 +697,7 @@ router.post(
       }
 
       const assetsByPlaceId = new Map<string, LocalFalconUploadedAsset>();
-      for (const row of selectedRows.filter((row) => row.prospectOutcome !== "no_visibility_core_found")) {
+      for (const row of selectedRows.filter(previewRowNeedsMap)) {
         const heatmap = heatmapsByPlaceId.get(row.placeId);
         if (!heatmap) throw new Error(`Heatmap missing for ${row.companyName}`);
         const upload = await storageService.uploadFile(
@@ -742,7 +743,10 @@ router.post(
         assetsByPlaceId,
       );
 
-      const importedPlaceIds = new Set(result.importedLeads.map((lead) => lead.placeId));
+      const importedPlaceIds = new Set([
+        ...result.importedLeads.map((lead) => lead.placeId),
+        ...result.importedCompetitors.filter((competitor) => competitor.createdReport).map((competitor) => competitor.placeId),
+      ]);
       for (const [placeId, asset] of assetsByPlaceId) {
         if (!importedPlaceIds.has(placeId)) {
           await storageService.deleteFile(asset.key).catch(() => undefined);

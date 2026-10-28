@@ -26,7 +26,7 @@ export async function getLocalFalconPrioritiesByLeadIds(
 
   const priorities: Record<string, SalesPrioritySnapshot> = {};
   for (const row of rows) {
-    if (priorities[row.leadId]) continue;
+    if (!row.leadId || priorities[row.leadId]) continue;
     const priority = parseSalesPriority(row.tier);
     if (!priority) continue;
     priorities[row.leadId] = {

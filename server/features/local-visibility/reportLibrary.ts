@@ -77,7 +77,8 @@ function summarizeReport(row: ReportRow): LocalVisibilityReportSummary {
 
 const reportSelection = {
   id: localFalconProspectProfiles.id,
-  leadId: localFalconProspectProfiles.leadId,
+  // Every query here inner-joins crm_leads, so competitor scans (no lead) never appear.
+  leadId: sql<string>`${localFalconProspectProfiles.leadId}`,
   companyId: crmLeads.companyId,
   batchRecordId: localFalconProspectProfiles.batchRecordId,
   batchId: localFalconImportBatches.batchId,

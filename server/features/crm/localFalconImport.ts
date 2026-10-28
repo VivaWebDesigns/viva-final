@@ -109,9 +109,52 @@ const auditFirstProspectSchema = z.object({
   }
 });
 
+const localFalconReportKeySchema = z.string().trim().regex(/^[a-f0-9]{12,64}$/i, "Must be a Local Falcon report key");
+
+// A nearby competitor's scan. It creates no lead: the import stores its report
+// once and points each listed lead report (by report key) at it.
+const competitorScanSchema = z.object({
+  place_id: z.string().trim().min(1),
+  company_name: z.string().trim().min(1),
+  address: z.string().trim().min(1),
+  city: z.string().trim().min(1),
+  state: z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()),
+  zip: z.string().trim().min(1),
+  google_maps_url: z.string().trim().url().optional(),
+  report_key: localFalconReportKeySchema,
+  report_url: z.string().trim().url(),
+  scan_date: z.string().trim().min(1),
+  scan_keyword: z.string().trim().min(1),
+  scan_spec: scanSpecSchema.optional(),
+  arp: z.coerce.number().finite().min(0),
+  atrp: z.number().finite().min(1).nullable().optional(),
+  solv: z.coerce.number().finite().min(0).max(100),
+  rating: z.coerce.number().finite().min(0).max(5),
+  review_count: z.coerce.number().int().min(0),
+  scan_center: scanCenterSchema.optional(),
+  heatmap_file: z.string().trim().min(1).optional(),
+  for_report_keys: z.array(localFalconReportKeySchema).min(1).max(200),
+}).strict().superRefine((value, ctx) => {
+  const normalizedPath = value.heatmap_file?.replace(/\\/g, "/");
+  if (normalizedPath && (!/^heatmaps\/[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/i.test(normalizedPath) || normalizedPath.includes(".."))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["heatmap_file"],
+      message: "Must reference a PNG, JPG, or WebP file directly inside heatmaps/",
+    });
+  }
+}).transform((value) => ({
+  ...value,
+  google_maps_url: value.google_maps_url ?? googleMapsUrlFromPlaceId(value.place_id),
+}));
+
+// Optional and left absent when unused, so lead-only batch.json files round-trip unchanged.
+const competitorScansSchema = z.array(competitorScanSchema).max(100).optional();
+
 const auditFirstPayloadSchema = z.object({
   batch: batchSchema,
-  prospects: z.array(auditFirstProspectSchema).min(1).max(200),
+  prospects: z.array(auditFirstProspectSchema).max(200),
+  competitors: competitorScansSchema,
 }).strict();
 
 export function googleMapsUrlFromPlaceId(placeId: string): string {
@@ -222,7 +265,8 @@ const scaleFirstProspectSchema = z.preprocess(
 const scaleFirstPayloadSchema = z.object({
   workflow: z.literal(SCALE_FIRST_WORKFLOW),
   batch: batchSchema,
-  prospects: z.array(scaleFirstProspectSchema).min(1).max(2000),
+  prospects: z.array(scaleFirstProspectSchema).max(2000),
+  competitors: competitorScansSchema,
 }).strict();
 
 export type LocalFalconBatchInput = z.infer<typeof batchSchema>;
@@ -242,9 +286,30 @@ export function isDeliverableProspect(prospect: LocalFalconProspectInput): prosp
   return !isNoVisibilityProspect(prospect);
 }
 
+export type CompetitorScanInput = z.infer<typeof competitorScanSchema>;
+/** Every batch entry with a Local Falcon map: deliverable lead prospects and competitor scans. */
+export type MappedScanInput = DeliverableProspectInput | CompetitorScanInput;
+
+export function isCompetitorScan(scan: LocalFalconProspectInput | CompetitorScanInput): scan is CompetitorScanInput {
+  return "for_report_keys" in scan;
+}
+
+export function competitorScans(payload: LocalFalconPayload): CompetitorScanInput[] {
+  return payload.competitors ?? [];
+}
+
+export function mappedScans(payload: LocalFalconPayload): MappedScanInput[] {
+  return [...payload.prospects.filter(isDeliverableProspect), ...competitorScans(payload)];
+}
+
+export function findBatchEntry(payload: LocalFalconPayload, placeId: string) {
+  return payload.prospects.find((candidate) => candidate.place_id === placeId)
+    ?? competitorScans(payload).find((candidate) => candidate.place_id === placeId);
+}
+
 export function getProspectScanSpec(
   payload: LocalFalconPayload,
-  prospect: LocalFalconProspectInput,
+  prospect: LocalFalconProspectInput | CompetitorScanInput,
 ): LocalFalconScanSpec {
   return "scan_spec" in prospect && prospect.scan_spec
     ? prospect.scan_spec
@@ -310,9 +375,23 @@ export interface ProspectPreview {
   scanSpec: LocalFalconScanSpec | null;
   prospectOutcome?: "deliverable" | typeof NO_VISIBILITY_OUTCOME;
   marketReference?: NoVisibilityProspectInput["market_reference"];
-  outcome: "new" | "variation" | "existing" | "flagged";
+  // "competitor" stores a new competitor scan; "link" reuses one already in the CRM.
+  outcome: "new" | "variation" | "existing" | "flagged" | "competitor" | "link";
   reason?: string;
   matches?: FallbackMatch[];
+}
+
+export function isSelectedPreviewRow(row: ProspectPreview, approvedFlaggedPlaceIds: Set<string>): boolean {
+  return row.outcome === "new"
+    || row.outcome === "variation"
+    || row.outcome === "competitor"
+    || row.outcome === "link"
+    || (row.outcome === "flagged" && approvedFlaggedPlaceIds.has(row.placeId));
+}
+
+/** Rows whose official map must be verified before confirming; linked competitor scans are already stored. */
+export function previewRowNeedsMap(row: ProspectPreview): boolean {
+  return row.prospectOutcome !== NO_VISIBILITY_OUTCOME && row.outcome !== "link";
 }
 
 export interface LocalFalconPreviewResult {
@@ -327,6 +406,7 @@ export interface LocalFalconPreviewResult {
   variationCount: number;
   existingCount: number;
   flaggedCount: number;
+  competitorCount: number;
   rows: ProspectPreview[];
 }
 
@@ -371,6 +451,9 @@ export function parseLocalFalconPayload(text: string): LocalFalconPayload {
   const parsed = (isScaleFirst ? scaleFirstPayloadSchema : auditFirstPayloadSchema).safeParse(raw);
   if (!parsed.success) throw new Error(zodMessage(parsed.error));
   assertDate(parsed.data.batch.export_date, "batch.export_date");
+  if (parsed.data.prospects.length === 0 && competitorScans(parsed.data).length === 0) {
+    throw new Error("prospects: Array must contain at least 1 element(s)");
+  }
 
   const placeIds = new Set<string>();
   const reportKeys = new Set<string>();
@@ -388,6 +471,23 @@ export function parseLocalFalconPayload(text: string): LocalFalconPayload {
     placeIds.add(prospect.place_id);
     if (prospect.report_key) reportKeys.add(prospect.report_key);
     if (prospect.heatmap_file) heatmapFiles.add(prospect.heatmap_file);
+  }
+  for (const [index, competitor] of competitorScans(parsed.data).entries()) {
+    assertDate(competitor.scan_date, `competitors.${index}.scan_date`);
+    if (competitor.scan_keyword !== parsed.data.batch.keyword) {
+      throw new Error(`competitors.${index}.scan_keyword must match batch.keyword`);
+    }
+    if (placeIds.has(competitor.place_id)) throw new Error(`competitors.${index}.place_id is duplicated inside the batch`);
+    if (reportKeys.has(competitor.report_key)) throw new Error(`competitors.${index}.report_key is duplicated inside the batch`);
+    if (competitor.heatmap_file && heatmapFiles.has(competitor.heatmap_file)) {
+      throw new Error(`competitors.${index}.heatmap_file is referenced more than once`);
+    }
+    if (competitor.for_report_keys.includes(competitor.report_key)) {
+      throw new Error(`competitors.${index}.for_report_keys cannot include the competitor's own report`);
+    }
+    placeIds.add(competitor.place_id);
+    reportKeys.add(competitor.report_key);
+    if (competitor.heatmap_file) heatmapFiles.add(competitor.heatmap_file);
   }
 
   return parsed.data;
@@ -476,7 +576,10 @@ export async function previewLocalFalconImport(
       leadId: localFalconProspectProfiles.leadId,
       companyName: localFalconProspectProfiles.companyName,
     }).from(localFalconProspectProfiles)
-      .where(inArray(localFalconProspectProfiles.placeId, placeIds))
+      .where(and(
+        inArray(localFalconProspectProfiles.placeId, placeIds),
+        eq(localFalconProspectProfiles.scanRole, "lead"),
+      ))
       .orderBy(desc(localFalconProspectProfiles.createdAt)),
     reportKeys.length ? db.select({
       reportKey: localFalconProspectProfiles.reportKey,
@@ -488,7 +591,7 @@ export async function previewLocalFalconImport(
   ]);
   const existingByPlace = new Map<string, { leadId: string; companyName: string | null }>();
   for (const row of [...existingPlaceProfiles, ...existingCrmOnly]) {
-    if (!existingByPlace.has(row.placeId)) {
+    if (row.leadId && !existingByPlace.has(row.placeId)) {
       existingByPlace.set(row.placeId, { leadId: row.leadId, companyName: row.companyName });
     }
   }
@@ -529,6 +632,7 @@ export async function previewLocalFalconImport(
     const matches = await existingCompanyMatches(prospect);
     rows.push({ ...base, outcome: matches.length ? "flagged" : "new", matches: matches.length ? matches : undefined });
   }
+  rows.push(...await previewCompetitorScans(payload, rows.length));
 
   const scanSpecs = [...new Map(payload.prospects.filter(isDeliverableProspect).map((prospect) => {
     const spec = getProspectScanSpec(payload, prospect);
@@ -547,8 +651,57 @@ export async function previewLocalFalconImport(
     variationCount: rows.filter((row) => row.outcome === "variation").length,
     existingCount: rows.filter((row) => row.outcome === "existing").length,
     flaggedCount: rows.filter((row) => row.outcome === "flagged").length,
+    competitorCount: rows.filter((row) => row.outcome === "competitor" || row.outcome === "link").length,
     rows,
   };
+}
+
+async function previewCompetitorScans(
+  payload: LocalFalconPayload,
+  rowOffset: number,
+): Promise<ProspectPreview[]> {
+  const competitors = competitorScans(payload);
+  if (competitors.length === 0) return [];
+  const leadReportKeys = [...new Set(competitors.flatMap((competitor) => competitor.for_report_keys))];
+  const [storedCompetitors, storedLeadReports] = await Promise.all([
+    db.select({ reportKey: localFalconProspectProfiles.reportKey, scanRole: localFalconProspectProfiles.scanRole })
+      .from(localFalconProspectProfiles)
+      .where(inArray(localFalconProspectProfiles.reportKey, competitors.map((competitor) => competitor.report_key))),
+    db.select({ reportKey: localFalconProspectProfiles.reportKey, companyName: localFalconProspectProfiles.companyName })
+      .from(localFalconProspectProfiles)
+      .where(and(
+        inArray(localFalconProspectProfiles.reportKey, leadReportKeys),
+        eq(localFalconProspectProfiles.scanRole, "lead"),
+      )),
+  ]);
+  const storedRoles = new Map(storedCompetitors.map((row) => [row.reportKey, row.scanRole]));
+  const leadNames = new Map<string, string>([
+    ...storedLeadReports.map((row) => [row.reportKey, row.companyName ?? row.reportKey] as const),
+    ...payload.prospects.filter(isDeliverableProspect).map((prospect) => [prospect.report_key, prospect.company_name] as const),
+  ]);
+
+  return competitors.map((competitor, index) => {
+    const storedRole = storedRoles.get(competitor.report_key);
+    if (storedRole === "lead") {
+      throw new Error(`competitors.${index}.report_key is already a lead's own report`);
+    }
+    const names = competitor.for_report_keys.map((reportKey) => {
+      const name = leadNames.get(reportKey);
+      if (!name) throw new Error(`competitors.${index}.for_report_keys: ${reportKey} is not a lead report in the CRM or this batch`);
+      return name;
+    });
+    return {
+      row: rowOffset + index + 1,
+      placeId: competitor.place_id,
+      companyName: competitor.company_name,
+      address: competitor.address,
+      heatmapFile: storedRole ? "Competitor scan already in the CRM" : competitor.heatmap_file ?? "Official Local Falcon image",
+      scanSpec: getProspectScanSpec(payload, competitor),
+      prospectOutcome: "deliverable",
+      outcome: storedRole ? "link" : "competitor",
+      reason: `${storedRole ? "Existing competitor scan, linked" : "Competitor scan"} for ${names.join(", ")}`,
+    };
+  });
 }
 
 export interface LocalFalconImportResult extends LocalFalconPreviewResult {
@@ -565,13 +718,19 @@ export interface LocalFalconImportResult extends LocalFalconPreviewResult {
     contactTag?: ScaleFirstContactTag;
     automatedEmailEligible?: boolean;
   }>;
+  importedCompetitors: Array<{
+    placeId: string;
+    reportId: string;
+    createdReport: boolean;
+    linkedReportCount: number;
+  }>;
 }
 
 export async function importLocalFalconPayload(
   payload: LocalFalconPayload,
   importedBy: string,
   assignedTo: string,
-  leadClassification: LocalFalconLeadClassification,
+  leadClassification: LocalFalconLeadClassification | null,
   selectedPlaceIds: Set<string>,
   assetsByPlaceId: Map<string, LocalFalconUploadedAsset>,
 ): Promise<LocalFalconImportResult> {
@@ -585,12 +744,17 @@ export async function importLocalFalconPayload(
     )
       .map((row) => row.placeId),
   );
-  if (allowedPlaceIds.size === 0) {
+  const competitorOutcomes = new Map(
+    preview.rows.filter((row) => row.outcome === "competitor" || row.outcome === "link")
+      .map((row) => [row.placeId, row.outcome]),
+  );
+  if (allowedPlaceIds.size === 0 && competitorOutcomes.size === 0) {
     throw new Error("No new leads or reports were selected for import");
   }
-  for (const prospect of payload.prospects.filter(isDeliverableProspect)) {
-    if (allowedPlaceIds.has(prospect.place_id) && !assetsByPlaceId.has(prospect.place_id)) {
-      throw new Error(`Heatmap upload is missing for Place ID ${prospect.place_id}`);
+  for (const scan of mappedScans(payload)) {
+    const needsAsset = allowedPlaceIds.has(scan.place_id) || competitorOutcomes.get(scan.place_id) === "competitor";
+    if (needsAsset && !assetsByPlaceId.has(scan.place_id)) {
+      throw new Error(`Heatmap upload is missing for Place ID ${scan.place_id}`);
     }
   }
 
@@ -635,9 +799,13 @@ export async function importLocalFalconPayload(
       }).returning();
       classificationTags.push(tag);
     }
-    const selectedClassification = getLocalFalconLeadClassification(leadClassification);
-    const selectedTag = classificationTags.find((tag) => tag.slug === selectedClassification.tagSlug);
-    if (!selectedTag) throw new Error(`CRM tag '${selectedClassification.label}' is not configured`);
+    // Competitor-only batches create no leads, so they need no lead type.
+    if (allowedPlaceIds.size > 0 && !leadClassification) throw new Error("Choose SAB or Location Based before importing leads.");
+    const selectedClassification = leadClassification ? getLocalFalconLeadClassification(leadClassification) : null;
+    const selectedTag = selectedClassification
+      ? classificationTags.find((tag) => tag.slug === selectedClassification.tagSlug)
+      : undefined;
+    if (selectedClassification && !selectedTag) throw new Error(`CRM tag '${selectedClassification.label}' is not configured`);
     const classificationTagIds = classificationTags.map((tag) => tag.id);
     const contactRoutingTags: Array<typeof crmTags.$inferSelect> = [];
     if ("workflow" in payload) {
@@ -796,7 +964,7 @@ export async function importLocalFalconPayload(
         eq(crmLeadTags.leadId, lead.id),
         inArray(crmLeadTags.tagId, classificationTagIds),
       ));
-      await tx.insert(crmLeadTags).values({ leadId: lead.id, tagId: selectedTag.id });
+      await tx.insert(crmLeadTags).values({ leadId: lead.id, tagId: selectedTag!.id });
 
       const contactRouting = getScaleFirstContactRouting(prospect);
       if (contactRouting.contactTag) {
@@ -910,15 +1078,88 @@ export async function importLocalFalconPayload(
         } : {}),
       });
     }
-    return { importedLeads: results };
+    // Lead reports from this batch are inserted above, so competitors can link to them here.
+    const importedCompetitors: LocalFalconImportResult["importedCompetitors"] = [];
+    for (const competitor of competitorScans(payload)) {
+      if (!competitorOutcomes.has(competitor.place_id)) continue;
+      let [report] = await tx.select({ id: localFalconProspectProfiles.id, scanRole: localFalconProspectProfiles.scanRole })
+        .from(localFalconProspectProfiles)
+        .where(eq(localFalconProspectProfiles.reportKey, competitor.report_key))
+        .limit(1);
+      if (report && report.scanRole !== "competitor") {
+        throw new Error(`The report for ${competitor.company_name} is already a lead's own report`);
+      }
+      const createdReport = !report;
+      if (!report) {
+        const asset = assetsByPlaceId.get(competitor.place_id);
+        if (!asset) throw new Error(`Heatmap upload is missing for Place ID ${competitor.place_id}`);
+        const scanSpec = getProspectScanSpec(payload, competitor);
+        [report] = await tx.insert(localFalconProspectProfiles).values({
+          batchRecordId: batch.id,
+          leadId: null,
+          scanRole: "competitor",
+          placeId: competitor.place_id,
+          companyName: competitor.company_name,
+          address: competitor.address,
+          city: competitor.city,
+          state: competitor.state,
+          zip: competitor.zip,
+          scanCenterLat: competitor.scan_center ? String(competitor.scan_center.lat) : null,
+          scanCenterLng: competitor.scan_center ? String(competitor.scan_center.lng) : null,
+          scanCity: competitor.scan_center?.city ?? null,
+          scanState: competitor.scan_center?.state ?? null,
+          scanZip: competitor.scan_center?.zip ?? null,
+          googleMapsUrl: competitor.google_maps_url,
+          reportKey: competitor.report_key,
+          reportUrl: competitor.report_url,
+          scanDate: new Date(competitor.scan_date),
+          scanKeyword: competitor.scan_keyword,
+          scanGridSize: scanSpec.grid_size,
+          scanRadiusMiles: String(scanSpec.radius_miles),
+          heatmapFile: competitor.heatmap_file ?? null,
+          heatmapSourceUrl: asset.sourceUrl ?? null,
+          heatmapStorageKey: asset.key,
+          heatmapOriginalName: asset.originalName,
+          heatmapMimeType: asset.mimeType,
+          heatmapSizeBytes: asset.sizeBytes,
+          heatmapSha256: asset.sha256,
+          snapshotStorageKey: asset.snapshot.key,
+          snapshotOriginalName: asset.snapshot.originalName,
+          snapshotMimeType: asset.snapshot.mimeType,
+          snapshotSizeBytes: asset.snapshot.sizeBytes,
+          snapshotSha256: asset.snapshot.sha256,
+          snapshotGeneratedAt: new Date(),
+          arp: String(competitor.arp),
+          atrp: competitor.atrp == null ? null : String(competitor.atrp),
+          solv: String(competitor.solv),
+          rating: String(competitor.rating),
+          reviewCount: competitor.review_count,
+        }).returning({ id: localFalconProspectProfiles.id, scanRole: localFalconProspectProfiles.scanRole });
+      }
+      const linked = await tx.update(localFalconProspectProfiles)
+        .set({ competitorReportId: report.id })
+        .where(and(
+          inArray(localFalconProspectProfiles.reportKey, competitor.for_report_keys),
+          eq(localFalconProspectProfiles.scanRole, "lead"),
+        ))
+        .returning({ id: localFalconProspectProfiles.id });
+      importedCompetitors.push({
+        placeId: competitor.place_id,
+        reportId: report.id,
+        createdReport,
+        linkedReportCount: linked.length,
+      });
+    }
+    return { importedLeads: results, importedCompetitors };
   });
 
-  const { importedLeads } = transactionResult;
+  const { importedLeads, importedCompetitors } = transactionResult;
   return {
     ...preview,
-    imported: importedLeads.length,
+    imported: importedLeads.length + importedCompetitors.filter((row) => row.createdReport).length,
     leadsCreated: importedLeads.filter((row) => row.createdNewLead).length,
     importedLeads,
+    importedCompetitors,
   };
 }
 

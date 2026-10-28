@@ -77,10 +77,23 @@ interface LocalFalconPreviewRow {
     mapPosition: { x: number; y: number };
   } | null;
   reportData: LocalVisibilityReportData | null;
-  outcome: "new" | "variation" | "existing" | "flagged";
+  // "competitor" stores a new competitor scan; "link" reuses one already in the CRM.
+  outcome: "new" | "variation" | "existing" | "flagged" | "competitor" | "link";
   reason?: string;
   matches?: Array<{ companyName: string; reasons: string[] }>;
 }
+
+const isCompetitorRow = (row: LocalFalconPreviewRow) => row.outcome === "competitor" || row.outcome === "link";
+
+/** Linked competitor scans are already stored, so only new reports need a verified map. */
+const rowNeedsMap = (row: LocalFalconPreviewRow) =>
+  row.prospectOutcome !== "no_visibility_core_found" && row.outcome !== "link";
+
+const isIncludedRow = (row: LocalFalconPreviewRow, approvedFlagged: Set<string>) =>
+  row.outcome === "new"
+  || row.outcome === "variation"
+  || isCompetitorRow(row)
+  || (row.outcome === "flagged" && approvedFlagged.has(row.placeId));
 
 interface LocalFalconPreviewMap {
   placeId: string;
@@ -110,6 +123,7 @@ interface LocalFalconPreview {
   variationCount: number;
   existingCount: number;
   flaggedCount: number;
+  competitorCount?: number;
   sourceMode: "local_falcon" | "zip" | "fallback";
   rows: LocalFalconPreviewRow[];
 }
@@ -379,12 +393,8 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       row.verifiedAsset ? [[row.placeId, row.verifiedAsset] as const] : [],
     ));
     setVerifiedMapAssets((current) => new Map([...current, ...initialAssets]));
-    const rows = basePreview.rows.filter((row) =>
-      row.prospectOutcome !== "no_visibility_core_found" && !row.verifiedAsset,
-    );
-    let completed = basePreview.rows.filter((row) =>
-      row.prospectOutcome !== "no_visibility_core_found" && !!row.verifiedAsset,
-    ).length;
+    const rows = basePreview.rows.filter((row) => rowNeedsMap(row) && !row.verifiedAsset);
+    let completed = basePreview.rows.filter((row) => rowNeedsMap(row) && !!row.verifiedAsset).length;
     setLoadedMapCount(completed);
     if (!rows.length) return;
     setIsLoadingMaps(true);
@@ -509,7 +519,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
   const handleConfirmLocalFalcon = async () => {
     if (!preview) return;
-    if (!leadClassification) {
+    if (!leadClassification && includedLeadRows.length > 0) {
       setImportError("Choose SAB or Location Based before importing.");
       return;
     }
@@ -519,22 +529,17 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
       const form = buildPackageForm([]);
       form.append("reportMetric", "ATRP");
       if (assignedTo) form.append("assignedTo", assignedTo);
-      form.append("leadClassification", leadClassification);
+      if (leadClassification) form.append("leadClassification", leadClassification);
       form.append("approvedFlaggedPlaceIds", JSON.stringify([...approvedFlagged]));
       form.append("previewHeatmapChecksums", JSON.stringify(Object.fromEntries(
-        preview.rows.filter((row) => row.prospectOutcome !== "no_visibility_core_found").map((row) => [row.placeId, row.heatmapSha256]),
+        preview.rows.filter(rowNeedsMap).map((row) => [row.placeId, row.heatmapSha256]),
       )));
       form.append("verifiedMapAssets", JSON.stringify(Object.fromEntries(verifiedMapAssets)));
       form.append("confirmedCrmOnlyPlaceIds", JSON.stringify(preview.rows
         .filter((row) => row.prospectOutcome === "no_visibility_core_found" && confirmedPreviews.has(row.placeId))
         .map((row) => row.placeId)));
-      const selectedRows = preview.rows.filter(
-        (row) =>
-          row.outcome === "new"
-          || row.outcome === "variation"
-          || (row.outcome === "flagged" && approvedFlagged.has(row.placeId)),
-      );
-      for (const row of selectedRows.filter((row) => row.prospectOutcome !== "no_visibility_core_found")) {
+      const selectedRows = preview.rows.filter((row) => isIncludedRow(row, approvedFlagged));
+      for (const row of selectedRows.filter(rowNeedsMap)) {
         const blob = await renderLocalVisibilityReportBlob(reportRefs.current.get(row.placeId) ?? null);
         form.append("snapshots", blob, `${row.placeId}.png`);
       }
@@ -593,11 +598,8 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     });
   };
 
-  const includedRows = preview?.rows.filter((row) =>
-    row.outcome === "new"
-    || row.outcome === "variation"
-    || (row.outcome === "flagged" && approvedFlagged.has(row.placeId)),
-  ) ?? [];
+  const includedRows = preview?.rows.filter((row) => isIncludedRow(row, approvedFlagged)) ?? [];
+  const includedLeadRows = includedRows.filter((row) => !isCompetitorRow(row));
   const confirmedIncludedPreviewCount = includedRows.filter((row) => confirmedPreviews.has(row.placeId)).length;
   const allIncludedPreviewsConfirmed = includedRows.length > 0
     && confirmedIncludedPreviewCount === includedRows.length;
@@ -605,21 +607,17 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
     && !allIncludedPreviewsConfirmed;
   const everyIncludedPreviewConfirmed = includedRows.length > 0
     && allIncludedPreviewsConfirmed;
-  const everyIncludedMapReady = includedRows.every((row) =>
-    row.prospectOutcome === "no_visibility_core_found" || !!row.heatmapSha256,
-  );
+  const everyIncludedMapReady = includedRows.every((row) => !rowNeedsMap(row) || !!row.heatmapSha256);
   const everyManifestMapReady = preview?.rows.every((row) =>
-    row.prospectOutcome === "no_visibility_core_found"
+    !rowNeedsMap(row)
       || (!!row.heatmapSha256 && !!row.verifiedAsset && verifiedMapAssets.has(row.placeId)),
   ) ?? false;
-  const requiredMapCount = preview?.rows.filter((row) =>
-    row.prospectOutcome !== "no_visibility_core_found",
-  ).length ?? 0;
+  const requiredMapCount = preview?.rows.filter(rowNeedsMap).length ?? 0;
 
   const setAllIncludedPreviewsConfirmed = (checked: boolean) => {
     setConfirmedPreviews((current) => {
       const next = new Set(current);
-      includedRows.filter((row) => row.prospectOutcome === "no_visibility_core_found" || !!row.heatmapSha256).forEach((row) => {
+      includedRows.filter((row) => !rowNeedsMap(row) || !!row.heatmapSha256).forEach((row) => {
         if (checked) next.add(row.placeId);
         else next.delete(row.placeId);
       });
@@ -790,6 +788,9 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                 )}
                 <Badge className="bg-yellow-100 text-yellow-700">{preview.flaggedCount} flagged</Badge>
                 <Badge variant="secondary">{preview.existingCount} existing</Badge>
+                {!!preview.competitorCount && (
+                  <Badge className="bg-purple-100 text-purple-700">{preview.competitorCount} competitors</Badge>
+                )}
               </div>
             </div>
 
@@ -819,6 +820,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                     </div>
                   )}
                 </div>
+                {includedLeadRows.length > 0 && <>
                 <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-center">
                   <Label>Lead type <span className="text-red-500">*</span></Label>
                   <div>
@@ -849,6 +851,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                     <SelectContent>{salesReps.map((rep) => <SelectItem key={rep.id} value={rep.id}>{rep.name} · {rep.email}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+                </>}
               </div>
             )}
 
@@ -873,14 +876,14 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
 
             <div className="space-y-4">
               {preview.rows.map((row) => {
-                const isIncluded = row.outcome === "new" || row.outcome === "variation" || approvedFlagged.has(row.placeId);
+                const isIncluded = isIncludedRow(row, approvedFlagged);
                 return (
                   <div key={row.placeId} className="rounded-xl border p-4" data-testid={`local-falcon-preview-row-${row.row}`}>
                     <div className="grid gap-5 lg:grid-cols-[1fr_270px]">
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold">{row.companyName}</p>
-                          <Badge variant={row.outcome === "new" || row.outcome === "variation" ? "default" : "outline"}>
+                          <Badge variant={row.outcome === "new" || row.outcome === "variation" || isCompetitorRow(row) ? "default" : "outline"}>
                             {row.outcome}
                           </Badge>
                         </div>
@@ -906,13 +909,17 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
                           <label className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-sm font-medium text-blue-950">
                             <Checkbox
                               checked={confirmedPreviews.has(row.placeId)}
-                              disabled={row.prospectOutcome !== "no_visibility_core_found" && !row.heatmapSha256}
+                              disabled={rowNeedsMap(row) && !row.heatmapSha256}
                               onCheckedChange={(value) => toggleSet(setConfirmedPreviews, row.placeId, value === true)}
                               data-testid={`checkbox-confirm-local-falcon-preview-${row.row}`}
                             />
                             <span>{row.prospectOutcome === "no_visibility_core_found"
                               ? "I reviewed this CRM-only lead and understand its market reference is not a validated business location or report."
-                              : "I confirmed the image belongs to this company and all grid dots are visible in the framed report."}</span>
+                              : row.outcome === "link"
+                                ? "Link this competitor scan, already in the CRM, to the leads listed above."
+                                : row.outcome === "competitor"
+                                  ? "I confirmed the image belongs to this competitor and all grid dots are visible. It creates no lead."
+                                  : "I confirmed the image belongs to this company and all grid dots are visible in the framed report."}</span>
                           </label>
                         ) : null}
                       </div>
@@ -952,7 +959,7 @@ export function CsvImportModal({ open, onClose, defaultEntity = "local_falcon" }
           {phase === "done" ? (
             <><Button variant="outline" onClick={clearImportState}>Import more</Button><Button onClick={handleClose}>Done</Button></>
           ) : phase === "preview" ? (
-            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedRows.length > 0 && (!assignedTo || !leadClassification)) || !everyIncludedPreviewConfirmed || !everyIncludedMapReady || !everyManifestMapReady || isLoadingMaps || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Preparing import…" : "Confirm import"}</Button></>
+            <><Button variant="outline" onClick={clearImportState} disabled={isGeneratingSnapshots}>Choose another package</Button><Button onClick={handleConfirmLocalFalcon} disabled={preview?.batchAlreadyImported || (includedLeadRows.length > 0 && (!assignedTo || !leadClassification)) || !everyIncludedPreviewConfirmed || !everyIncludedMapReady || !everyManifestMapReady || isLoadingMaps || isGeneratingSnapshots} data-testid="button-confirm-local-falcon-import">{isGeneratingSnapshots ? "Preparing import…" : "Confirm import"}</Button></>
           ) : (
             <><Button variant="outline" onClick={handleClose} disabled={phase === "loading"}>Cancel</Button><Button onClick={handleImport} disabled={!file || phase === "loading"} data-testid="button-start-import">{phase === "loading" ? t.crm.importing : imageFailures.length > 0 && heatmapFiles.length === 0 ? "Retry automatic retrieval" : "Review import"}</Button></>
           )}
