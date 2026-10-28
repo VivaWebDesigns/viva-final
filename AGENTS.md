@@ -29,6 +29,13 @@ Only perform post-push deployment monitoring or live-production verification whe
 - After running a schema push, verify important columns or indexes with a read-only query against the same Railway database service.
 - Never print or commit database connection strings or Railway secret values.
 
+## Local Dominator API
+
+- Base URL `https://api.localdominator.co`, sent as `Authorization: Bearer <key>`. The web app's backend (`backend.localdominator.co`) rejects this key.
+- The key is the Railway variable `LOCAL_DOMINATOR_API_KEY` on the VivaWebDesigns.com service (production). Read it like `LOCAL_FALCON_API_KEY`; never print or commit it.
+- Docs: https://app.localdominator.co/api-doc. Useful reads: `GET /v1/scans` and `GET /v1/scans/{scan_id}/results`. The Charlotte-area roofing master scan is `a16b5878-abcf-48f8-a9c1-4c04d45860f5`.
+- Read only by default. Starting scans (`POST /v1/scans`, scheduled scans) uses credits and `DELETE` removes scans; ask first.
+
 ## Related Repositories
 
 - Marketplace extension source: `/Users/matt/Projects/extension/chrome-extension/marketplace-assistant`
