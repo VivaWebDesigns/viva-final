@@ -87,6 +87,7 @@ export default function LeadListPage() {
   const [tagFilters, setTagFilters] = useState<string[]>(() => initialParams.getAll("tagIds"));
   const tagFilterIds = useMemo(() => new Set(tagFilters), [tagFilters]);
   const [assigneeFilter, setAssigneeFilter] = useState<string>(() => initialParams.get("assignedTo") ?? "all");
+  const [tradeFilter, setTradeFilter] = useState<string>(() => initialParams.get("trade") ?? "all");
   const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">(
     () => (initialParams.get("reportOutreach") as ReportOutreachFilter | null) ?? "all",
   );
@@ -112,6 +113,7 @@ export default function LeadListPage() {
     tagFilters.forEach((tagId) => params.append("tagIds", tagId));
     if (assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
     if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
+    if (tradeFilter !== "all") params.set("trade", tradeFilter);
     if (page > 1) params.set("page", String(page));
     const query = params.toString();
     return query ? `?${query}` : "";
@@ -142,18 +144,29 @@ export default function LeadListPage() {
     staleTime: STALE.SLOW,
   });
 
+  const { data: trades = [] } = useQuery<{ trade: string; count: number }[]>({
+    queryKey: ["/api/crm/leads/trades"],
+    staleTime: STALE.FAST,
+  });
+
+  const buildLeadFilterParams = () => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (statusFilter && statusFilter !== "all") params.set("statusId", statusFilter);
+    if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter);
+    tagFilters.forEach((id) => params.append("tagIds", id));
+    if (assigneeFilter && assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
+    if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
+    if (tradeFilter !== "all") params.set("trade", tradeFilter);
+    return params;
+  };
+
   const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, reportOutreachFilter, tagFilters, page],
+    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, reportOutreachFilter, tagFilters, tradeFilter, page],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (statusFilter && statusFilter !== "all") params.set("statusId", statusFilter);
-      if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter);
-      tagFilters.forEach((id) => params.append("tagIds", id));
-      if (assigneeFilter && assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
-      if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
+      const params = buildLeadFilterParams();
       params.set("page", String(page));
       params.set("limit", String(pageSize));
       const res = await fetch(`/api/crm/leads?${params}`, { credentials: "include" });
@@ -188,6 +201,24 @@ export default function LeadListPage() {
   };
 
   const clearSelection = () => setSelectedIds(new Set());
+
+  const [selectingAllMatching, setSelectingAllMatching] = useState(false);
+  const selectAllMatching = async () => {
+    setSelectingAllMatching(true);
+    try {
+      const res = await fetch(`/api/crm/leads/ids?${buildLeadFilterParams()}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to select leads");
+      const { ids, total: matching }: { ids: string[]; total: number } = await res.json();
+      setSelectedIds(new Set(ids));
+      if (ids.length < matching) {
+        toast({ title: `Selected the first ${ids.length} of ${matching} leads`, description: "Narrow the filters to select the rest." });
+      }
+    } catch (e: any) {
+      toast({ title: t.common.error, description: e.message, variant: "destructive" });
+    } finally {
+      setSelectingAllMatching(false);
+    }
+  };
 
   const closeBulkDialog = () => {
     setBulkDialog(null);
@@ -304,11 +335,14 @@ export default function LeadListPage() {
     return lead.title;
   };
 
-  const getLeadTrade = (lead: LeadWithRelations) => {
-    const trade = lead.trade || lead.company?.industry;
-    if (!trade) return null;
+  const getTradeLabel = (trade: string) => {
     const key = trade.trim().toLowerCase().replace(/[\s-]+/g, "_");
     return (t.trades as Record<string, string>)[key] ?? trade;
+  };
+
+  const getLeadTrade = (lead: LeadWithRelations) => {
+    const trade = lead.trade || lead.company?.industry;
+    return trade ? getTradeLabel(trade) : null;
   };
 
   const getLeadCity = (lead: LeadWithRelations) =>
@@ -413,6 +447,20 @@ export default function LeadListPage() {
               </SelectContent>
             </Select>
           )}
+          <Select value={tradeFilter} onValueChange={(v) => { setTradeFilter(v); setPage(1); setSelectedIds(new Set()); }}>
+            <SelectTrigger className="w-full lg:w-52" data-testid="select-trade-filter" aria-label="Trade filter">
+              <SelectValue placeholder="All trades" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All trades</SelectItem>
+              {tradeFilter !== "all" && !trades.some(({ trade }) => trade.toLowerCase() === tradeFilter.toLowerCase()) && (
+                <SelectItem value={tradeFilter}>{getTradeLabel(tradeFilter)}</SelectItem>
+              )}
+              {trades.map(({ trade, count }) => (
+                <SelectItem key={trade} value={trade}>{getTradeLabel(trade)} ({count})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
             <SelectTrigger className="w-full lg:w-44" data-testid="select-status-filter">
               <SelectValue placeholder={t.crm.allStatuses} />
@@ -533,6 +581,16 @@ export default function LeadListPage() {
                 data-testid="button-select-page"
               >
                 {t.common.selectAll}
+              </button>
+            )}
+            {selectedIds.size < total && total > leads.length && (
+              <button
+                onClick={selectAllMatching}
+                disabled={selectingAllMatching}
+                className="text-teal-100 hover:text-white text-xs font-semibold underline transition-colors disabled:opacity-60"
+                data-testid="button-select-all-matching"
+              >
+                {selectingAllMatching ? "Selecting…" : `Select all ${total} matching`}
               </button>
             )}
 

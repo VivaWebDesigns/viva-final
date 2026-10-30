@@ -130,8 +130,11 @@ const tagIdsSchema = z.object({
   tagIds: z.array(z.string()).optional().default([]),
 });
 
+// "Select all matching" can select every lead in a filter, so bulk actions accept that many.
+const MAX_BULK_LEADS = 5000;
+
 const bulkIdsSchema = z.object({
-  ids: z.array(z.string()).min(1, "At least one lead required").max(200, "Maximum 200 leads at once"),
+  ids: z.array(z.string()).min(1, "At least one lead required").max(MAX_BULK_LEADS, `Maximum ${MAX_BULK_LEADS} leads at once`),
 });
 
 const bulkAssignSchema = bulkIdsSchema.extend({
@@ -200,29 +203,38 @@ async function assertLeadAccess(
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+const leadFilterQuerySchema = z.object({
+  search: z.string().optional(),
+  statusId: z.string().optional(),
+  source: z.string().optional(),
+  assignedTo: z.string().optional(),
+  tagId: z.string().min(1).optional(),
+  tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
+  fromWebsiteForm: z.enum(["true", "false"]).optional(),
+  reportOutreach: z.enum(REPORT_OUTREACH_FILTERS).optional(),
+  trade: z.string().trim().min(1).max(200).optional(),
+});
+
+/** Lead list filters from the query string; restricted roles only ever see their own leads. */
+function parseLeadFilterQuery(req: express.Request): crmStorage.LeadFilters | null {
+  const parsed = leadFilterQuerySchema.safeParse(req.query);
+  if (!parsed.success) return null;
+  const { tagIds, fromWebsiteForm, assignedTo, ...rest } = parsed.data;
+  return {
+    ...rest,
+    assignedTo: isRestricted(req) ? req.authUser!.id : assignedTo,
+    tagIds: typeof tagIds === "string" ? [tagIds] : tagIds,
+    fromWebsiteForm: fromWebsiteForm === "true" ? true : fromWebsiteForm === "false" ? false : undefined,
+  };
+}
+
 router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
-    const { search, statusId, source, assignedTo, tagId, tagIds, fromWebsiteForm, reportOutreach, page, limit } = req.query;
-    const parsedTags = z.object({
-      tagId: z.string().min(1).optional(),
-      tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
-    }).safeParse({ tagId, tagIds });
-    if (!parsedTags.success) return res.status(400).json({ message: "Invalid tag filters" });
-    const parsedOutreach = z.enum(REPORT_OUTREACH_FILTERS).optional().safeParse(reportOutreach);
-    if (!parsedOutreach.success) return res.status(400).json({ message: "Invalid report outreach filter" });
-    // Restricted roles can only see their own leads — ignore any client-supplied filter.
-    const resolvedAssignedTo = isRestricted(req)
-      ? req.authUser!.id
-      : (assignedTo as string | undefined);
+    const filters = parseLeadFilterQuery(req);
+    if (!filters) return res.status(400).json({ message: "Invalid lead filters" });
+    const { page, limit } = req.query;
     const result = await crmStorage.getLeads({
-      search: search as string | undefined,
-      statusId: statusId as string | undefined,
-      source: source as string | undefined,
-      assignedTo: resolvedAssignedTo,
-      tagId: parsedTags.data.tagId,
-      tagIds: typeof parsedTags.data.tagIds === "string" ? [parsedTags.data.tagIds] : parsedTags.data.tagIds,
-      fromWebsiteForm: fromWebsiteForm === "true" ? true : fromWebsiteForm === "false" ? false : undefined,
-      reportOutreach: parsedOutreach.data,
+      ...filters,
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
@@ -238,30 +250,29 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
   }
 });
 
+router.get("/leads/ids", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
+  try {
+    const filters = parseLeadFilterQuery(req);
+    if (!filters) return res.status(400).json({ message: "Invalid lead filters" });
+    res.json(await crmStorage.getLeadIds(filters, MAX_BULK_LEADS));
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get("/leads/trades", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
+  try {
+    res.json(await crmStorage.getLeadTrades(isRestricted(req) ? req.authUser!.id : undefined));
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get("/leads/:id/navigation", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
   try {
-    const { search, statusId, source, assignedTo, tagId, tagIds, fromWebsiteForm, reportOutreach } = req.query;
-    const parsedTags = z.object({
-      tagId: z.string().min(1).optional(),
-      tagIds: z.union([z.string().min(1), z.array(z.string().min(1)).max(100)]).optional(),
-    }).safeParse({ tagId, tagIds });
-    if (!parsedTags.success) return res.status(400).json({ message: "Invalid tag filters" });
-    const parsedOutreach = z.enum(REPORT_OUTREACH_FILTERS).optional().safeParse(reportOutreach);
-    if (!parsedOutreach.success) return res.status(400).json({ message: "Invalid report outreach filter" });
-
-    const navigation = await crmStorage.getLeadNavigation(
-      req.params.id as string,
-      {
-        search: search as string | undefined,
-        statusId: statusId as string | undefined,
-        source: source as string | undefined,
-        assignedTo: isRestricted(req) ? req.authUser!.id : assignedTo as string | undefined,
-        tagId: parsedTags.data.tagId,
-        tagIds: typeof parsedTags.data.tagIds === "string" ? [parsedTags.data.tagIds] : parsedTags.data.tagIds,
-        fromWebsiteForm: fromWebsiteForm === "true" ? true : fromWebsiteForm === "false" ? false : undefined,
-        reportOutreach: parsedOutreach.data,
-      },
-    );
+    const filters = parseLeadFilterQuery(req);
+    if (!filters) return res.status(400).json({ message: "Invalid lead filters" });
+    const navigation = await crmStorage.getLeadNavigation(req.params.id as string, filters);
     if (!navigation) return res.status(404).json({ message: "Lead not found" });
     res.json(navigation);
   } catch (error: any) {

@@ -40,16 +40,20 @@ export interface LeadFilters extends PaginationParams {
   tagIds?: string[];
   fromWebsiteForm?: boolean;
   reportOutreach?: ReportOutreachFilter;
+  trade?: string;
 }
 
 interface SearchParams extends PaginationParams {
   search?: string;
 }
 
+// The lead's own trade, falling back to its company's industry (what the lead list shows).
+const leadTrade = sql<string | null>`coalesce(nullif(trim(${crmLeads.trade}), ''), nullif(trim((SELECT c.industry FROM ${crmCompanies} c WHERE c.id = ${crmLeads.companyId})), ''))`;
+
 const reportEngaged = sql`EXISTS (SELECT 1 FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL AND (d.view_count > 0 OR d.cta_click_count > 0))`;
 
 function buildLeadWhere(filters: LeadFilters) {
-  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, reportOutreach } = filters;
+  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, reportOutreach, trade } = filters;
   const conditions = [];
 
   if (search) {
@@ -62,6 +66,7 @@ function buildLeadWhere(filters: LeadFilters) {
   }
   if (statusId) conditions.push(eq(crmLeads.statusId, statusId));
   if (source) conditions.push(eq(crmLeads.source, source));
+  if (trade) conditions.push(sql`lower(${leadTrade}) = lower(${trade.trim()})`);
   const sharedFilter = buildSharedLeadFilterCondition(crmLeads.id, {
     tagIds: [...tagIds, ...(tagId ? [tagId] : [])],
     reportOutreach,
@@ -108,6 +113,27 @@ export async function getLeads(filters: LeadFilters = {}) {
   ]);
 
   return { items, total: totalResult[0]?.total ?? 0, page, limit };
+}
+
+/** IDs of every lead matching the filters, for "select all matching". */
+export async function getLeadIds(filters: LeadFilters, max: number): Promise<{ ids: string[]; total: number }> {
+  const where = buildLeadWhere(filters);
+  const [rows, [{ total }]] = await Promise.all([
+    db.select({ id: crmLeads.id }).from(crmLeads).where(where).orderBy(...getLeadSort(filters.reportOutreach)).limit(max),
+    db.select({ total: count() }).from(crmLeads).where(where),
+  ]);
+  return { ids: rows.map((row) => row.id), total };
+}
+
+/** Distinct trades with lead counts, for the trade filter. */
+export async function getLeadTrades(assignedTo?: string): Promise<{ trade: string; count: number }[]> {
+  const key = sql`lower(${leadTrade})`;
+  return db
+    .select({ trade: sql<string>`min(${leadTrade})`, count: count() })
+    .from(crmLeads)
+    .where(and(sql`${leadTrade} IS NOT NULL`, assignedTo ? eq(crmLeads.assignedTo, assignedTo) : undefined))
+    .groupBy(key)
+    .orderBy(key);
 }
 
 export async function getLeadById(id: string): Promise<CrmLead | undefined> {
