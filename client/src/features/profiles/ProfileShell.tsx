@@ -1,5 +1,6 @@
 import CrmOnlyEvidenceCard from "./CrmOnlyEvidenceCard";
 import { ReportOutreachPanel } from "../crm/ReportOutreachPanel";
+import { isReportOutreachTask, REPORT_INITIAL_TASK_TITLE } from "@shared/reportOutreach";
 /**
  * Unified Profile Shell
  *
@@ -2983,6 +2984,10 @@ function ProfileShellInner({
   const isSalesRep = role === "sales_rep";
   const canCreateTasks = Boolean(role && !isSalesRep);
   const hideSalesRepOppSections = entry.type === "opportunity" && isSalesRep;
+  // Setters call leads; email outreach tasks stay on the admin's side.
+  const showTask = (task: { taskType?: string | null; title: string }) =>
+    !isSalesRep || !(task.taskType === "email" || isReportOutreachTask(task.taskType) || task.title === REPORT_INITIAL_TASK_TITLE);
+  const visibleWorkTasks = work.tasks.filter(showTask);
 
   const spokeWithLeadTaskIdRef = useRef<string | null>(null);
   const spokeWithLeadNoteRef = useRef<string | undefined>(undefined);
@@ -3231,7 +3236,7 @@ function ProfileShellInner({
     leads: sales.leadHistory.length,
     deals: sales.opportunities.length,
     dealValue: sales.opportunities.reduce((sum, o) => sum + (Number(o.value) || 0), 0),
-    openTasks: work.tasks.filter((wt) => !wt.completed).length,
+    openTasks: visibleWorkTasks.filter((wt) => !wt.completed).length,
     t,
   };
 
@@ -3239,9 +3244,10 @@ function ProfileShellInner({
   const unpinnedNotes = notes.filter((n) => !n.isPinned);
   const sortedNotes = [...pinnedNotes, ...unpinnedNotes];
 
-  const overdueTasks = clientTasks.filter((ct) => ct.status === "overdue");
-  const openTasks = clientTasks.filter((ct) => ct.status === "open");
-  const completedTasks = clientTasks.filter((ct) => ct.status === "completed");
+  const visibleClientTasks = clientTasks.filter(showTask);
+  const overdueTasks = visibleClientTasks.filter((ct) => ct.status === "overdue");
+  const openTasks = visibleClientTasks.filter((ct) => ct.status === "open");
+  const completedTasks = visibleClientTasks.filter((ct) => ct.status === "completed");
 
   const primaryContact = identity.primaryContact;
   const contact = primaryContact;
@@ -3271,9 +3277,9 @@ function ProfileShellInner({
           </TabsTrigger>
           <TabsTrigger value="tasks" data-testid="tab-tasks">
             {t.profileShell.tasks}
-            {work.tasks.length > 0 && (
+            {visibleWorkTasks.length > 0 && (
               <span className="ml-1.5 bg-amber-100 text-amber-700 rounded-full text-xs px-1.5 py-0 font-medium">
-                {work.tasks.filter((wt) => !wt.completed).length}
+                {visibleWorkTasks.filter((wt) => !wt.completed).length}
               </span>
             )}
           </TabsTrigger>
@@ -3485,7 +3491,7 @@ function ProfileShellInner({
             <div className="space-y-3 animate-pulse">
               {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-gray-50 rounded-lg" />)}
             </div>
-          ) : clientTasks.length === 0 ? (
+          ) : visibleClientTasks.length === 0 ? (
             <Card className="p-8 text-center">
               <CheckSquare2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
               <p className="text-sm text-gray-500">{t.profileShell.noTasksYet}</p>
