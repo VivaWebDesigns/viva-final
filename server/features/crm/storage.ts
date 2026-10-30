@@ -57,13 +57,14 @@ const leadTrade = sql<string | null>`coalesce(nullif(trim(${crmLeads.trade}), ''
 
 const reportEngaged = sql`EXISTS (SELECT 1 FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL AND (d.view_count > 0 OR d.cta_click_count > 0))`;
 
-const openCallBack = sql`t.lead_id = ${crmLeads.id} AND t.task_type = ${CALL_TASK_TYPE} AND t.title = ${CALL_BACK_TASK_TITLE} AND t.completed = false`;
+const openCallBack = sql`t.lead_id = "crm_leads"."id" AND t.task_type = ${CALL_TASK_TYPE} AND t.title = ${CALL_BACK_TASK_TITLE} AND t.completed = false`;
 const callBackDue = sql`EXISTS (SELECT 1 FROM ${followupTasks} t WHERE ${openCallBack} AND t.due_date::date <= (now() AT TIME ZONE 'America/New_York')::date)`;
 // The lead's stage: its open deal first, else its latest one. No deal (or the retired Report Emailed stage) reads as New Lead.
+// The lead id is written out in full: drizzle drops the table name from columns in a partial select, which made "id" ambiguous here.
 export const leadStageSlug = sql<string>`coalesce((
   SELECT CASE WHEN s.slug = 'report-emailed' THEN 'new-lead' ELSE s.slug END
   FROM ${pipelineOpportunities} o JOIN ${pipelineStages} s ON s.id = o.stage_id
-  WHERE o.lead_id = ${crmLeads.id}
+  WHERE o.lead_id = "crm_leads"."id"
   ORDER BY (o.status = 'open') DESC, o.updated_at DESC
   LIMIT 1
 ), 'new-lead')`;
