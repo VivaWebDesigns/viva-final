@@ -214,6 +214,7 @@ const leadFilterQuerySchema = z.object({
   reportOutreach: z.enum(REPORT_OUTREACH_FILTERS).optional(),
   trade: z.string().trim().min(1).max(200).optional(),
   callBacks: z.enum(["due"]).optional(),
+  stage: z.string().regex(/^[a-z-]{1,40}$/).optional(),
 });
 
 /** Lead list filters from the query string; restricted roles only ever see their own leads. */
@@ -240,11 +241,13 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
     const leadIds = result.items.map(lead => lead.id);
-    const [outreach, enriched, callBacks] = await Promise.all([
+    const [outreach, enriched, callBacks, stages] = await Promise.all([
       getReportOutreachStates(leadIds, db, true), crmStorage.enrichLeads(result.items), crmStorage.getOpenCallBacks(leadIds),
+      crmStorage.getLeadStageSlugs(leadIds),
     ]);
     const leads = enriched.map(l => ({
       ...stripSensitiveLeadFields(l, req), ...outreach.get(l.id), callBack: callBacks.get(l.id) ?? null,
+      stageSlug: stages.get(l.id) ?? "new-lead",
     }));
     res.json({ leads, total: result.total, page: result.page, pageSize: result.limit });
   } catch (error: any) {
@@ -257,6 +260,16 @@ router.get("/leads/ids", requireRole("admin", "developer", "sales_rep", "lead_ge
     const filters = parseLeadFilterQuery(req);
     if (!filters) return res.status(400).json({ message: "Invalid lead filters" });
     res.json(await crmStorage.getLeadIds(filters, MAX_BULK_LEADS));
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get("/leads/stage-counts", requireRole("admin", "developer", "sales_rep", "lead_gen"), async (req, res) => {
+  try {
+    const filters = parseLeadFilterQuery(req);
+    if (!filters) return res.status(400).json({ message: "Invalid lead filters" });
+    res.json(await crmStorage.getLeadStageCounts(filters));
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

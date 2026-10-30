@@ -44,6 +44,8 @@ export interface LeadFilters extends PaginationParams {
   trade?: string;
   /** "due": only leads with an open call-back due today or earlier (Eastern time). */
   callBacks?: "due";
+  /** Pipeline stage slug; leads without a deal count as New Lead. */
+  stage?: string;
 }
 
 interface SearchParams extends PaginationParams {
@@ -57,11 +59,20 @@ const reportEngaged = sql`EXISTS (SELECT 1 FROM ${scanReportDeliveries} d WHERE 
 
 const openCallBack = sql`t.lead_id = ${crmLeads.id} AND t.task_type = ${CALL_TASK_TYPE} AND t.title = ${CALL_BACK_TASK_TITLE} AND t.completed = false`;
 const callBackDue = sql`EXISTS (SELECT 1 FROM ${followupTasks} t WHERE ${openCallBack} AND t.due_date::date <= (now() AT TIME ZONE 'America/New_York')::date)`;
+// The lead's stage: its open deal first, else its latest one. No deal (or the retired Report Emailed stage) reads as New Lead.
+export const leadStageSlug = sql<string>`coalesce((
+  SELECT CASE WHEN s.slug = 'report-emailed' THEN 'new-lead' ELSE s.slug END
+  FROM ${pipelineOpportunities} o JOIN ${pipelineStages} s ON s.id = o.stage_id
+  WHERE o.lead_id = ${crmLeads.id}
+  ORDER BY (o.status = 'open') DESC, o.updated_at DESC
+  LIMIT 1
+), 'new-lead')`;
+
 // "YYYY-MM-DD HH:MM" sorts in time order, so the earliest call-back comes first.
 const nextCallBackAt = sql`(SELECT min(to_char(t.due_date, 'YYYY-MM-DD') || ' ' || coalesce(t.follow_up_time, '')) FROM ${followupTasks} t WHERE ${openCallBack})`;
 
 function buildLeadWhere(filters: LeadFilters) {
-  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, reportOutreach, trade, callBacks } = filters;
+  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, reportOutreach, trade, callBacks, stage } = filters;
   const conditions = [];
 
   if (search) {
@@ -76,6 +87,7 @@ function buildLeadWhere(filters: LeadFilters) {
   if (source) conditions.push(eq(crmLeads.source, source));
   if (trade) conditions.push(sql`lower(${leadTrade}) = lower(${trade.trim()})`);
   if (callBacks === "due") conditions.push(callBackDue);
+  if (stage) conditions.push(sql`${leadStageSlug} = ${stage}`);
   const sharedFilter = buildSharedLeadFilterCondition(crmLeads.id, {
     tagIds: [...tagIds, ...(tagId ? [tagId] : [])],
     reportOutreach,
@@ -126,6 +138,21 @@ export async function getLeads(filters: LeadFilters = {}) {
 }
 
 /** IDs of every lead matching the filters, for "select all matching". */
+/** How many leads match the filters in each pipeline stage (the stage filter itself is ignored). */
+export async function getLeadStageCounts(filters: LeadFilters): Promise<Record<string, number>> {
+  const where = buildLeadWhere({ ...filters, stage: undefined });
+  const stageSlug = sql<string>`${leadStageSlug}`.as("stage_slug");
+  const rows = await db.select({ stage: stageSlug, total: count() }).from(crmLeads).where(where).groupBy(sql`stage_slug`);
+  return Object.fromEntries(rows.map((row) => [row.stage, Number(row.total)]));
+}
+
+/** Each lead's pipeline stage slug, for the stage pill on the setter's lead list. */
+export async function getLeadStageSlugs(leadIds: string[]): Promise<Map<string, string>> {
+  if (leadIds.length === 0) return new Map();
+  const rows = await db.select({ id: crmLeads.id, stage: leadStageSlug }).from(crmLeads).where(inArray(crmLeads.id, leadIds));
+  return new Map(rows.map((row) => [row.id, row.stage]));
+}
+
 export type OpenCallBack = { dueDate: Date; followUpTime: string | null; followUpTimezone: string | null };
 
 /** Each lead's earliest open call-back, for the call-back badge on the lead list. */

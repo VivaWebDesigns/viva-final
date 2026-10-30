@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import { m, AnimatePresence } from "framer-motion";
 import {
   Search, ChevronDown, ChevronLeft, ChevronRight, Globe, Phone, Mail,
-  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, PhoneCall, Users, Upload, UserPlus, UserCircle, MapPin,
+  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, PhoneCall, Lock, Users, Upload, UserPlus, UserCircle, MapPin,
 } from "lucide-react";
 import { CsvImportModal, CsvExportDropdown } from "./CsvImportExportModal";
 import CreateLeadModal from "./CreateLeadModal";
@@ -37,6 +37,7 @@ import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 import LeadTagBadges from "@/components/LeadTagBadges";
 import SalesPriorityBadge from "@/components/SalesPriorityBadge";
 import { formatTaskTimeDisplay, todayLocalString } from "@/components/taskScheduling";
+import { CALL_PIPELINE_STAGES, HIDDEN_STAGE_SLUGS, SETTER_WORKING_STAGES } from "@shared/callPipeline";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 
 interface LeadWithRelations extends CrmLead {
@@ -55,6 +56,7 @@ interface LeadWithRelations extends CrmLead {
   lastUnassignedFromUser?: { id: string; name: string } | null;
   salesPriority?: SalesPrioritySnapshot | null;
   callBack?: { dueDate: string; followUpTime: string | null; followUpTimezone: string | null } | null;
+  stageSlug?: string;
 }
 
 interface LeadsResponse {
@@ -82,6 +84,8 @@ export default function LeadListPage() {
   const isRestricted = role === "sales_rep" || role === "lead_gen";
   // Appointment setters call leads; the email outreach badges and filters are for admins.
   const showEmailOutreach = role !== "sales_rep";
+  // Setters track leads by pipeline stage; lead status and source filters are for admins.
+  const isSetter = role === "sales_rep";
   const initialParams = new URLSearchParams(window.location.search);
 
   const [rawSearch, setRawSearch] = useState(() => initialParams.get("search") ?? "");
@@ -93,6 +97,7 @@ export default function LeadListPage() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>(() => initialParams.get("assignedTo") ?? "all");
   const [tradeFilter, setTradeFilter] = useState<string>(() => initialParams.get("trade") ?? "all");
   const [callBacksDue, setCallBacksDue] = useState(() => initialParams.get("callBacks") === "due");
+  const [stageFilter, setStageFilter] = useState<string | null>(() => initialParams.get("stage"));
   const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">(
     () => (initialParams.get("reportOutreach") as ReportOutreachFilter | null) ?? "all",
   );
@@ -120,6 +125,7 @@ export default function LeadListPage() {
     if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
     if (tradeFilter !== "all") params.set("trade", tradeFilter);
     if (callBacksDue) params.set("callBacks", "due");
+    if (stageFilter) params.set("stage", stageFilter);
     if (page > 1) params.set("page", String(page));
     const query = params.toString();
     return query ? `?${query}` : "";
@@ -165,11 +171,12 @@ export default function LeadListPage() {
     if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
     if (tradeFilter !== "all") params.set("trade", tradeFilter);
     if (callBacksDue) params.set("callBacks", "due");
+    if (stageFilter) params.set("stage", stageFilter);
     return params;
   };
 
   const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, reportOutreachFilter, tagFilters, tradeFilter, callBacksDue, page],
+    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, reportOutreachFilter, tagFilters, tradeFilter, callBacksDue, stageFilter, page],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
     queryFn: async () => {
@@ -312,6 +319,35 @@ export default function LeadListPage() {
     bulkAddTagsMutation.isPending || bulkRemoveTagsMutation.isPending ||
     bulkDeleteMutation.isPending;
 
+  const { data: stageCounts = {} } = useQuery<Record<string, number>>({
+    queryKey: ["/api/crm/leads", "stage-counts", search, assigneeFilter, tagFilters, tradeFilter, callBacksDue],
+    enabled: isSetter,
+    staleTime: STALE.FAST,
+    queryFn: async () => {
+      const params = buildLeadFilterParams();
+      params.delete("stage");
+      const res = await fetch(`/api/crm/leads/stage-counts?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch stage counts");
+      return res.json();
+    },
+  });
+  // The setter's own stages always show; later stages appear once a lead reaches them.
+  const setterStages = CALL_PIPELINE_STAGES.filter((stage) =>
+    !(HIDDEN_STAGE_SLUGS as readonly string[]).includes(stage.slug)
+    && ((SETTER_WORKING_STAGES as readonly string[]).includes(stage.slug) || stage.slug === "closed-lost" || (stageCounts[stage.slug] ?? 0) > 0));
+  const stageTotal = Object.values(stageCounts).reduce((sum, n) => sum + n, 0);
+  const selectStage = (slug: string | null) => { setStageFilter(slug); setPage(1); setSelectedIds(new Set()); };
+
+  const getStageBadge = (lead: LeadWithRelations) => {
+    const stage = CALL_PIPELINE_STAGES.find((s) => s.slug === (lead.stageSlug ?? "new-lead"));
+    if (!stage) return null;
+    return (
+      <Badge variant="outline" className="text-xs" style={{ borderColor: stage.color, color: stage.color }} data-testid={`badge-stage-${lead.id}`}>
+        {stage.name}
+      </Badge>
+    );
+  };
+
   const getStatusBadge = (lead: LeadWithRelations) => {
     if (!lead.status) return null;
     return (
@@ -451,6 +487,42 @@ export default function LeadListPage() {
       />
       <CreateLeadModal open={showCreateModal} onClose={() => setShowCreateModal(false)} />
 
+      {isSetter && (
+        <Card className="mb-4 p-4" data-testid="setter-stage-bar">
+          <p className="text-xs text-gray-500 mb-2">Your leads by stage</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={stageFilter ? "outline" : "default"}
+              onClick={() => selectStage(null)}
+              data-testid="button-stage-all"
+            >
+              All <span className="ml-1.5 font-semibold">{stageTotal}</span>
+            </Button>
+            {setterStages.map((stage) => {
+              const active = stageFilter === stage.slug;
+              const locked = !(SETTER_WORKING_STAGES as readonly string[]).includes(stage.slug);
+              return (
+                <Button
+                  key={stage.slug}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => selectStage(active ? null : stage.slug)}
+                  style={active ? { backgroundColor: stage.color, borderColor: stage.color, color: "#fff" } : { borderColor: stage.color, color: stage.color }}
+                  title={locked ? "View only: an admin handles leads in this stage" : undefined}
+                  data-testid={`button-stage-${stage.slug}`}
+                >
+                  {locked && <Lock className="mr-1 h-3 w-3" />}
+                  {stage.name} <span className="ml-1.5 font-semibold">{stageCounts[stage.slug] ?? 0}</span>
+                </Button>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       <Card className="mb-4">
         <div className="p-4 flex flex-col gap-3 lg:flex-row lg:flex-wrap">
           <div className="relative flex-1 lg:min-w-64">
@@ -491,6 +563,7 @@ export default function LeadListPage() {
               ))}
             </SelectContent>
           </Select>
+          {!isSetter && (<>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
             <SelectTrigger className="w-full lg:w-44" data-testid="select-status-filter">
               <SelectValue placeholder={t.crm.allStatuses} />
@@ -519,6 +592,7 @@ export default function LeadListPage() {
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
+          </>)}
           {showEmailOutreach && (<>
           <Select value={reportOutreachFilter} onValueChange={(v) => { setReportOutreachFilter(v as ReportOutreachFilter | "all"); setPage(1); setSelectedIds(new Set()); }}>
             <SelectTrigger className="w-full lg:w-56" data-testid="select-report-outreach-filter" aria-label="Report outreach filter">
@@ -764,7 +838,7 @@ export default function LeadListPage() {
                             >
                               {getLeadDisplayTitle(lead)}
                             </h3>
-                            {getStatusBadge(lead)}
+                            {isSetter ? getStageBadge(lead) : getStatusBadge(lead)}
                             {getCallBackBadge(lead)}
                             {showEmailOutreach && getReportOutreachBadge(lead)}
                             <SalesPriorityBadge
