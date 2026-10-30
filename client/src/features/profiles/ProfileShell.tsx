@@ -199,7 +199,7 @@ function LocalFalconSnapshotCard({
   const { role } = useAuth();
   const canManageSnapshot = role === "admin" || role === "developer";
   const canEmailSnapshot = role === "admin" || role === "developer" || role === "sales_rep";
-  // Appointment setters only get Text scan from the report actions.
+  // Appointment setters only get Text scan from the report actions, and they call instead of emailing.
   const showReportShareActions = role !== "sales_rep";
   const [emailReportOpen, setEmailReportOpen] = useState(false);
   const [emailReportPreview, setEmailReportPreview] = useState<ScanReportEmailPreview | null>(null);
@@ -465,7 +465,7 @@ function LocalFalconSnapshotCard({
         </div>
       </CardHeader>
       <CardContent>
-        {canEmailSnapshot && data.leadId && <ReportOutreachPanel leadId={data.leadId} />}
+        {canEmailSnapshot && showReportShareActions && data.leadId && <ReportOutreachPanel leadId={data.leadId} />}
         <div className="mb-5 grid max-w-4xl grid-cols-1 gap-3 md:grid-cols-3" data-testid="local-falcon-qualification">
           <div
             className={`flex items-center gap-3 rounded-xl border-l-4 p-4 shadow-sm ${

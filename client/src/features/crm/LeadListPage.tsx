@@ -80,6 +80,8 @@ export default function LeadListPage() {
   const { role } = useAuth();
   const isAdmin = role === "admin";
   const isRestricted = role === "sales_rep" || role === "lead_gen";
+  // Appointment setters call leads; the email outreach badges and filters are for admins.
+  const showEmailOutreach = role !== "sales_rep";
   const initialParams = new URLSearchParams(window.location.search);
 
   const [rawSearch, setRawSearch] = useState(() => initialParams.get("search") ?? "");
@@ -517,6 +519,7 @@ export default function LeadListPage() {
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
+          {showEmailOutreach && (<>
           <Select value={reportOutreachFilter} onValueChange={(v) => { setReportOutreachFilter(v as ReportOutreachFilter | "all"); setPage(1); setSelectedIds(new Set()); }}>
             <SelectTrigger className="w-full lg:w-56" data-testid="select-report-outreach-filter" aria-label="Report outreach filter">
               <SelectValue placeholder="Report outreach" />
@@ -542,6 +545,7 @@ export default function LeadListPage() {
           >
             <AlertTriangle className="mr-1.5 h-4 w-4" /> Needs attention
           </Button>
+          </>)}
           <Button
             type="button"
             variant={callBacksDue ? "default" : "outline"}
@@ -762,7 +766,7 @@ export default function LeadListPage() {
                             </h3>
                             {getStatusBadge(lead)}
                             {getCallBackBadge(lead)}
-                            {getReportOutreachBadge(lead)}
+                            {showEmailOutreach && getReportOutreachBadge(lead)}
                             <SalesPriorityBadge
                               salesPriority={lead.salesPriority}
                               testId={`badge-sales-priority-lead-${lead.id}`}
@@ -788,7 +792,7 @@ export default function LeadListPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500 flex-wrap">
-                            {(lead.reportEmailCount ?? 0) > 0 && <span className="text-cyan-700" data-testid={`report-emails-${lead.id}`}>
+                            {showEmailOutreach && (lead.reportEmailCount ?? 0) > 0 && <span className="text-cyan-700" data-testid={`report-emails-${lead.id}`}>
                               {(lead.reportEmailCount ?? 0) > 2 ? `${lead.reportEmailCount} historical report emails sent` : `${lead.reportEmailCount} of 2 report emails sent`}
                               {lead.reportOutreachDisposition && lead.reportOutreachDisposition !== "active"
                                 ? ` · ${REPORT_DISPOSITION_LABELS[lead.reportOutreachDisposition] ?? lead.reportOutreachDisposition}` : ""}
