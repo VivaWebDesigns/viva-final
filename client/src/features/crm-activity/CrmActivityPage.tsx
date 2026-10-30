@@ -95,6 +95,7 @@ interface ActivitySummary {
   };
   reps: RepActivity[];
   targets: { dialsPerWeekday: number; conversationsPerWeekday: number; appointmentsPerWeek: number };
+  countFrom: string;
   dailySignIns: Array<{
     date: string;
     users: Array<{
@@ -441,7 +442,8 @@ export default function CrmActivityPage() {
                 <h2 className="text-base font-semibold text-gray-900">Productivity Scores</h2>
                 <p className="text-xs text-gray-500">
                   Targets: {data.targets.dialsPerWeekday} dials and {data.targets.conversationsPerWeekday} conversations a weekday, {data.targets.appointmentsPerWeek} appointments a week.
-                  Calls are counted from logged call tasks.
+                  Calls are counted from logged call tasks, starting{" "}
+                  {new Date(data.countFrom).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">

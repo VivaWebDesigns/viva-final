@@ -70,3 +70,6 @@ export const CALL_TARGETS = {
   conversationsPerWeekday: 9,
   appointmentsPerWeek: 3,
 } as const;
+
+/** Activity Intelligence ignores everything before this moment: the setters' clean start (Oct 30, 2026, 12:30 PM Eastern). */
+export const ACTIVITY_COUNT_FROM = "2026-10-30T16:30:00.000Z";

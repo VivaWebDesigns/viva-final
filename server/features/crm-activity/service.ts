@@ -8,7 +8,7 @@ import {
   user,
 } from "@shared/schema";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
-import { CALL_BACK_TASK_TITLE, CALL_OUTCOMES, CALL_TARGETS, CALL_TASK_TYPE, CONVERSATION_OUTCOMES } from "@shared/callPipeline";
+import { ACTIVITY_COUNT_FROM, CALL_BACK_TASK_TITLE, CALL_OUTCOMES, CALL_TARGETS, CALL_TASK_TYPE, CONVERSATION_OUTCOMES } from "@shared/callPipeline";
 
 export interface ActivityRange {
   from: Date;
@@ -230,6 +230,9 @@ export async function createActivityEvent(userId: string, data: {
 
 export async function getActivitySummary(options: number | { days?: number; from?: string; to?: string } = 1) {
   const range = makeRange(options);
+  // Nothing before the clean start counts, whatever range is picked.
+  const countFrom = new Date(ACTIVITY_COUNT_FROM);
+  if (range.from < countFrom) range.from = countFrom;
 
   const reps = await db
     .select({
@@ -541,7 +544,8 @@ export async function getActivitySummary(options: number | { days?: number; from
         AND ft.completed_at >= ${range.from}
         AND ft.completed_at < ${range.endExclusive}
     `),
-    // Call-backs that have come due (today's count once logged or once the day is over) and how many were logged by their date.
+    // Call-backs set since the clean start that have come due (today's count once logged or once the day is over),
+    // and how many were logged by their date. Due dates are midnight of the day, so they compare by day.
     db.execute(sql`
       SELECT
         ft.assigned_to AS "userId",
@@ -554,7 +558,8 @@ export async function getActivitySummary(options: number | { days?: number; from
       WHERE ft.task_type = ${CALL_TASK_TYPE}
         AND ft.title = ${CALL_BACK_TASK_TITLE}
         AND ft.assigned_to IS NOT NULL
-        AND ft.due_date >= ${range.from}
+        AND ft.created_at >= ${countFrom}
+        AND ft.due_date::date >= ${toDateKey(range.from)}::date
         AND ft.due_date < ${range.endExclusive}
         AND (ft.completed = true OR ft.due_date::date < (NOW() AT TIME ZONE ${CALL_TIMEZONE})::date)
       GROUP BY ft.assigned_to
@@ -790,6 +795,7 @@ export async function getActivitySummary(options: number | { days?: number; from
       appointmentRate: pct(totals.appointments, totals.conversations),
     },
     targets: CALL_TARGETS,
+    countFrom: ACTIVITY_COUNT_FROM,
     reps: repSummaries,
     dailySignIns,
   };
