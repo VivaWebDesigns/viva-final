@@ -8,6 +8,7 @@ import {
   user,
 } from "@shared/schema";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { CALL_BACK_TASK_TITLE, CALL_OUTCOMES, CALL_TARGETS, CALL_TASK_TYPE, CONVERSATION_OUTCOMES } from "@shared/callPipeline";
 
 export interface ActivityRange {
   from: Date;
@@ -122,8 +123,87 @@ const visibleSalesRepPredicate = and(
   eq(user.includeInActivityIntelligence, true),
 );
 
-const TARGET_TASKS_COMPLETED_PER_WEEKDAY = 6;
-const TARGET_LEADS_CONTACTED_PER_WEEKDAY = 4;
+const CALL_TIMEZONE = "America/New_York";
+
+type CallRow = {
+  userId: string;
+  outcome: string | null;
+  completedAt: Date | string;
+  hour: number;
+  openedLead: boolean;
+};
+
+export type CallStats = {
+  dials: number;
+  conversations: number;
+  appointments: number;
+  outcomes: Record<string, number>;
+  unopenedCalls: number;
+  dialsByHour: number[];
+  firstCallAt: string | null;
+  lastCallAt: string | null;
+};
+
+/** Rolls one setter's logged calls into the funnel, outcome mix and pace numbers. */
+export function summarizeCalls(rows: CallRow[]): CallStats {
+  const stats: CallStats = {
+    dials: rows.length,
+    conversations: 0,
+    appointments: 0,
+    outcomes: {},
+    unopenedCalls: 0,
+    dialsByHour: Array(24).fill(0),
+    firstCallAt: null,
+    lastCallAt: null,
+  };
+  for (const row of rows) {
+    const outcome = row.outcome ?? "Unknown";
+    stats.outcomes[outcome] = (stats.outcomes[outcome] ?? 0) + 1;
+    if (CONVERSATION_OUTCOMES.includes(outcome)) stats.conversations += 1;
+    if (outcome === CALL_OUTCOMES.appointmentSet) stats.appointments += 1;
+    if (!row.openedLead) stats.unopenedCalls += 1;
+    if (row.hour >= 0 && row.hour < 24) stats.dialsByHour[row.hour] += 1;
+    const at = toIso(row.completedAt);
+    if (at && (!stats.firstCallAt || at < stats.firstCallAt)) stats.firstCallAt = at;
+    if (at && (!stats.lastCallAt || at > stats.lastCallAt)) stats.lastCallAt = at;
+  }
+  return stats;
+}
+
+/** The call score: dials 35%, conversations 20%, appointments 15%, call-backs on time 15%, CRM time 10%, days active 5%. */
+export function scoreCalls(input: {
+  businessDays: number;
+  dials: number;
+  conversations: number;
+  appointments: number;
+  callBacksDue: number;
+  callBacksKept: number;
+  activeMs: number;
+  activeDays: number;
+}) {
+  const days = Math.max(input.businessDays, 1);
+  const dials = clamp((input.dials / (days * CALL_TARGETS.dialsPerWeekday)) * 100);
+  const conversations = clamp((input.conversations / (days * CALL_TARGETS.conversationsPerWeekday)) * 100);
+  const appointments = clamp((input.appointments / ((days / 5) * CALL_TARGETS.appointmentsPerWeek)) * 100);
+  // No call-backs due means none were missed.
+  const callBacks = input.callBacksDue > 0 ? pct(input.callBacksKept, input.callBacksDue) : 100;
+  const activity = clamp((input.activeMs / (days * 30 * 60 * 1000)) * 100);
+  const consistency = clamp((input.activeDays / days) * 100);
+  const score = clamp(Math.round(
+    dials * 0.35 + conversations * 0.2 + appointments * 0.15 + callBacks * 0.15 + activity * 0.1 + consistency * 0.05,
+  ));
+  return {
+    score,
+    breakdown: {
+      dials: Math.round(dials),
+      conversations: Math.round(conversations),
+      appointments: Math.round(appointments),
+      callBacks: Math.round(callBacks),
+      activity: Math.round(activity),
+      consistency: Math.round(consistency),
+    },
+  };
+}
 
 export async function createActivityEvent(userId: string, data: {
   eventType: string;
@@ -175,7 +255,7 @@ export async function getActivitySummary(options: number | { days?: number; from
     .groupBy(user.id, user.name, user.email, user.role)
     .orderBy(desc(sql`COALESCE(SUM(${crmActivityEvents.activeMs}), 0)`));
 
-  const [leadAssignments, leadNotes, pipelineActions, taskRows, signInRows, firstTouchRows, outcomeRows, dailyRows] = await Promise.all([
+  const [leadAssignments, leadNotes, pipelineActions, taskRows, signInRows, firstTouchRows, outcomeRows, dailyRows, callRows, callBackRows] = await Promise.all([
     db
       .select({
         userId: crmLeads.assignedTo,
@@ -438,7 +518,56 @@ export async function getActivitySummary(options: number | { days?: number; from
        AND t."date" = COALESCE(c."date", p."date")
       ORDER BY "date" DESC
     `),
+    // Every logged call, with its hour in Eastern time and whether the setter had the lead open in the 12 hours before logging it.
+    db.execute(sql`
+      SELECT
+        ft.assigned_to AS "userId",
+        ft.outcome,
+        ft.completed_at AS "completedAt",
+        EXTRACT(HOUR FROM (ft.completed_at AT TIME ZONE 'UTC') AT TIME ZONE ${CALL_TIMEZONE})::int AS "hour",
+        EXISTS (
+          SELECT 1 FROM crm_activity_events a
+          WHERE a.user_id = ft.assigned_to
+            AND a.entity_type = 'lead'
+            AND a.entity_id = ft.lead_id
+            AND a.event_type = 'view'
+            AND a.created_at <= ft.completed_at
+            AND a.created_at >= ft.completed_at - INTERVAL '12 hours'
+        ) AS "openedLead"
+      FROM followup_tasks ft
+      WHERE ft.task_type = ${CALL_TASK_TYPE}
+        AND ft.completed = true
+        AND ft.assigned_to IS NOT NULL
+        AND ft.completed_at >= ${range.from}
+        AND ft.completed_at < ${range.endExclusive}
+    `),
+    // Call-backs that have come due (today's count once logged or once the day is over) and how many were logged by their date.
+    db.execute(sql`
+      SELECT
+        ft.assigned_to AS "userId",
+        COUNT(*)::int AS "due",
+        COUNT(*) FILTER (
+          WHERE ft.completed = true
+            AND ((ft.completed_at AT TIME ZONE 'UTC') AT TIME ZONE ${CALL_TIMEZONE})::date <= ft.due_date::date
+        )::int AS "kept"
+      FROM followup_tasks ft
+      WHERE ft.task_type = ${CALL_TASK_TYPE}
+        AND ft.title = ${CALL_BACK_TASK_TITLE}
+        AND ft.assigned_to IS NOT NULL
+        AND ft.due_date >= ${range.from}
+        AND ft.due_date < ${range.endExclusive}
+        AND (ft.completed = true OR ft.due_date::date < (NOW() AT TIME ZONE ${CALL_TIMEZONE})::date)
+      GROUP BY ft.assigned_to
+    `),
   ]);
+
+  const callRowsByUser = new Map<string, CallRow[]>();
+  for (const row of callRows.rows as CallRow[]) {
+    const rows = callRowsByUser.get(row.userId) ?? [];
+    rows.push(row);
+    callRowsByUser.set(row.userId, rows);
+  }
+  const callBackMap = new Map((callBackRows.rows as Array<{ userId: string; due: number; kept: number }>).map((row) => [row.userId, row]));
 
   const assignedMap = mapByUser(leadAssignments);
   const notesMap = mapByUser(leadNotes);
@@ -525,23 +654,20 @@ export async function getActivitySummary(options: number | { days?: number; from
     const closeRate = pct(closedWon, leadsContacted);
     const demoCloseRate = pct(closedWon, demosScheduled);
 
-    const leadsContactedScore = clamp((leadsContacted / (businessDaysInRange * TARGET_LEADS_CONTACTED_PER_WEEKDAY)) * 100);
-    const taskScore = clamp((tasksCompleted / (businessDaysInRange * TARGET_TASKS_COMPLETED_PER_WEEKDAY)) * 100);
-    const followUpScore = followUpsDue > 0 ? pct(followUpsCompleted, followUpsDue) : 0;
-    const activityScore = clamp(rep.activeMs / (businessDaysInRange * 30 * 60 * 1000) * 100);
-    const firstTouchScore = firstTouch?.avgFirstTouchMinutes
-      ? clamp(100 - (firstTouch.avgFirstTouchMinutes / 24 / 60) * 100)
-      : (assigned > 0 ? 40 : 70);
-    const outcomeScore = clamp(demoRate * 0.6 + closeRate * 1.2 + demoCloseRate * 0.4);
-    const consistencyScore = clamp((activeDays / businessDaysInRange) * 100);
-    const productivityScore = clamp(Math.round(
-      followUpScore * 0.4
-      + taskScore * 0.2
-      + leadsContactedScore * 0.2
-      + activityScore * 0.1
-      + outcomeScore * 0.05
-      + consistencyScore * 0.05
-    ));
+    const calls = summarizeCalls(callRowsByUser.get(rep.userId) ?? []);
+    const callBacks = callBackMap.get(rep.userId);
+    const callBacksDue = callBacks?.due ?? 0;
+    const callBacksKept = callBacks?.kept ?? 0;
+    const { score: productivityScore, breakdown } = scoreCalls({
+      businessDays: businessDaysInRange,
+      dials: calls.dials,
+      conversations: calls.conversations,
+      appointments: calls.appointments,
+      callBacksDue,
+      callBacksKept,
+      activeMs: rep.activeMs,
+      activeDays,
+    });
 
     return {
       ...rep,
@@ -572,17 +698,14 @@ export async function getActivitySummary(options: number | { days?: number; from
       closeRate,
       demoCloseRate,
       avgTouchesBeforeDemo: demosScheduled > 0 ? Math.round(((outcomes?.pipelineActions ?? 0) + tasksCompleted) / demosScheduled) : null,
+      ...calls,
+      contactRate: pct(calls.conversations, calls.dials),
+      appointmentRate: pct(calls.appointments, calls.conversations),
+      callBacksDue,
+      callBacksKept,
       productivityScore,
       productivityStatus: getScoreStatus(productivityScore),
-      scoreBreakdown: {
-        leadWork: Math.round(leadsContactedScore),
-        activity: Math.round(activityScore),
-        firstTouch: Math.round(firstTouchScore),
-        tasks: Math.round(taskScore),
-        followUps: Math.round(followUpScore),
-        outcomes: Math.round(outcomeScore),
-        consistency: Math.round(consistencyScore),
-      },
+      scoreBreakdown: breakdown,
     };
   });
 
@@ -601,6 +724,12 @@ export async function getActivitySummary(options: number | { days?: number; from
     demosScheduled: acc.demosScheduled + rep.demosScheduled,
     closedWon: acc.closedWon + rep.closedWon,
     closedLost: acc.closedLost + rep.closedLost,
+    dials: acc.dials + rep.dials,
+    conversations: acc.conversations + rep.conversations,
+    appointments: acc.appointments + rep.appointments,
+    callBacksDue: acc.callBacksDue + rep.callBacksDue,
+    callBacksKept: acc.callBacksKept + rep.callBacksKept,
+    unopenedCalls: acc.unopenedCalls + rep.unopenedCalls,
   }), {
     activeMinutes: 0,
     signIns: 0,
@@ -616,6 +745,12 @@ export async function getActivitySummary(options: number | { days?: number; from
     demosScheduled: 0,
     closedWon: 0,
     closedLost: 0,
+    dials: 0,
+    conversations: 0,
+    appointments: 0,
+    callBacksDue: 0,
+    callBacksKept: 0,
+    unopenedCalls: 0,
   });
 
   const repNameMap = new Map(reps.map((rep) => [rep.userId, rep.name]));
@@ -651,7 +786,10 @@ export async function getActivitySummary(options: number | { days?: number; from
       demoRate: pct(totals.demosScheduled, totals.leadsContacted),
       closeRate: pct(totals.closedWon, totals.leadsContacted),
       demoCloseRate: pct(totals.closedWon, totals.demosScheduled),
+      contactRate: pct(totals.conversations, totals.dials),
+      appointmentRate: pct(totals.appointments, totals.conversations),
     },
+    targets: CALL_TARGETS,
     reps: repSummaries,
     dailySignIns,
   };

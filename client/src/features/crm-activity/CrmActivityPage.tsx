@@ -2,20 +2,38 @@ import { Fragment, useMemo, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { STALE } from "@/lib/queryClient";
+import { CALL_OUTCOMES } from "@shared/callPipeline";
 import {
-  BarChart3,
+  AlertTriangle,
   CalendarDays,
   ChevronDown,
   ChevronRight,
-  CheckCircle2,
   Clock,
   Gauge,
+  Phone,
+  PhoneCall,
+  PhoneIncoming,
+  RotateCcw,
   Target,
-  TrendingUp,
   Users,
 } from "lucide-react";
 
-interface RepActivity {
+interface CallActivity {
+  dials: number;
+  conversations: number;
+  appointments: number;
+  contactRate: number;
+  appointmentRate: number;
+  callBacksDue: number;
+  callBacksKept: number;
+  unopenedCalls: number;
+}
+
+interface RepActivity extends CallActivity {
+  outcomes: Record<string, number>;
+  dialsByHour: number[];
+  firstCallAt: string | null;
+  lastCallAt: string | null;
   userId: string;
   name: string;
   email: string;
@@ -44,18 +62,18 @@ interface RepActivity {
   productivityScore: number;
   productivityStatus: "excellent" | "strong" | "needs_attention" | "at_risk";
   scoreBreakdown: {
-    leadWork: number;
+    dials: number;
+    conversations: number;
+    appointments: number;
+    callBacks: number;
     activity: number;
-    firstTouch: number;
-    followUps: number;
-    outcomes: number;
     consistency: number;
   };
 }
 
 interface ActivitySummary {
   range: { from: string; to: string; days: number };
-  totals: {
+  totals: CallActivity & {
     activeMinutes: number;
     signIns: number;
     activeDays: number;
@@ -76,6 +94,7 @@ interface ActivitySummary {
     demoCloseRate: number;
   };
   reps: RepActivity[];
+  targets: { dialsPerWeekday: number; conversationsPerWeekday: number; appointmentsPerWeek: number };
   dailySignIns: Array<{
     date: string;
     users: Array<{
@@ -104,8 +123,65 @@ function formatDateLong(value: string) {
   });
 }
 
+// Same order and colors as the call dialog's choices: not reached, reached, then dead ends.
+const OUTCOME_BAR = [
+  { outcome: CALL_OUTCOMES.noVoicemail, label: "No answer", color: "bg-slate-300" },
+  { outcome: CALL_OUTCOMES.leftVoicemail, label: "Voicemail", color: "bg-sky-300" },
+  { outcome: CALL_OUTCOMES.callBack, label: "Call back", color: "bg-indigo-400" },
+  { outcome: CALL_OUTCOMES.appointmentSet, label: "Appointment", color: "bg-emerald-500" },
+  { outcome: CALL_OUTCOMES.notInterested, label: "Not interested", color: "bg-amber-400" },
+  { outcome: CALL_OUTCOMES.wrongNumber, label: "Wrong number", color: "bg-red-400" },
+];
+
+function OutcomeBar({ rep }: { rep: RepActivity }) {
+  if (rep.dials === 0) return <p className="text-xs text-gray-400">No calls logged.</p>;
+  return (
+    <div>
+      <div className="flex h-2.5 overflow-hidden rounded-full bg-gray-100" data-testid={`bar-outcomes-${rep.userId}`}>
+        {OUTCOME_BAR.map(({ outcome, color }) => {
+          const n = rep.outcomes[outcome] ?? 0;
+          return n > 0 ? <div key={outcome} className={color} style={{ width: `${(n / rep.dials) * 100}%` }} title={`${outcome}: ${n}`} /> : null;
+        })}
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-500">
+        {OUTCOME_BAR.map(({ outcome, label, color }) => (
+          <span key={outcome} className="flex items-center gap-1">
+            <span className={`h-2 w-2 rounded-full ${color}`} />
+            {label} {rep.outcomes[outcome] ?? 0}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function formatHour(hour: number) {
+  return `${hour % 12 || 12}${hour < 12 ? "a" : "p"}`;
+}
+
+/** Dials per hour (Eastern), 8am–7pm plus any hour outside that with calls. */
+function PaceChart({ rep }: { rep: RepActivity }) {
+  if (rep.dials === 0) return null;
+  const hours = rep.dialsByHour
+    .map((count, hour) => ({ hour, count }))
+    .filter(({ hour, count }) => (hour >= 8 && hour <= 19) || count > 0);
+  const max = Math.max(...hours.map(({ count }) => count), 1);
+  return (
+    <div className="flex items-end gap-0.5" data-testid={`chart-pace-${rep.userId}`}>
+      {hours.map(({ hour, count }) => (
+        <div key={hour} className="flex flex-1 flex-col items-center gap-0.5" title={`${formatHour(hour)}: ${count} calls`}>
+          <div className="flex h-10 w-full items-end">
+            <div className="w-full rounded-sm bg-teal-500" style={{ height: `${(count / max) * 100}%` }} />
+          </div>
+          <span className="text-[9px] text-gray-400">{formatHour(hour)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function formatTime(value: string | null) {
-  if (!value) return "No sign-in";
+  if (!value) return "None";
   return new Date(value).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
@@ -283,7 +359,7 @@ export default function CrmActivityPage() {
             CRM Activity Intelligence
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Admin view of lead handling, follow-up health, and CRM work patterns.
+            Admin view of setter calling, call-back follow-through, and CRM work patterns.
           </p>
         </div>
         <div className="flex flex-col gap-2" data-testid="filter-activity-range">
@@ -350,18 +426,24 @@ export default function CrmActivityPage() {
       ) : data ? (
         <>
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-7">
-            <StatCard label="CRM active time" value={formatMinutes(data.totals.activeMinutes)} icon={Clock} tone="bg-teal-500" />
-            <StatCard label="Sign-ins" value={data.totals.signIns} icon={Users} tone="bg-slate-500" />
-            <StatCard label="Leads contacted" value={data.totals.leadsContacted} icon={Target} tone="bg-cyan-500" />
-            <StatCard label="Demo rate" value={`${data.totals.demoRate}%`} icon={TrendingUp} tone="bg-emerald-500" />
-            <StatCard label="Follow-ups" value={`${data.totals.followUpsCompleted}/${data.totals.followUpsDue}`} icon={TrendingUp} tone="bg-emerald-500" />
-            <StatCard label="Closed won" value={data.totals.closedWon} icon={BarChart3} tone="bg-indigo-500" />
-            <StatCard label="Tasks completed" value={data.totals.tasksCompleted} icon={CheckCircle2} tone="bg-teal-500" />
+            <StatCard label="Dials" value={data.totals.dials} icon={Phone} tone="bg-teal-500" />
+            <StatCard label="Conversations" value={`${data.totals.conversations} · ${data.totals.contactRate}%`} icon={PhoneIncoming} tone="bg-indigo-500" />
+            <StatCard label="Appointments" value={`${data.totals.appointments} · ${data.totals.appointmentRate}%`} icon={Target} tone="bg-emerald-500" />
+            <StatCard label="Call-backs on time" value={`${data.totals.callBacksKept}/${data.totals.callBacksDue}`} icon={RotateCcw} tone="bg-violet-500" />
+            <StatCard label="CRM active time" value={formatMinutes(data.totals.activeMinutes)} icon={Clock} tone="bg-cyan-500" />
+            <StatCard label="First CRM opens" value={data.totals.signIns} icon={Users} tone="bg-slate-500" />
+            <StatCard label="Calls w/o lead open" value={data.totals.unopenedCalls} icon={AlertTriangle} tone={data.totals.unopenedCalls > 0 ? "bg-amber-500" : "bg-slate-400"} />
           </div>
 
           <section className="mb-6 rounded-lg border border-gray-200 bg-white" data-testid="card-productivity-scores">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h2 className="text-base font-semibold text-gray-900">Productivity Scores</h2>
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Productivity Scores</h2>
+                <p className="text-xs text-gray-500">
+                  Targets: {data.targets.dialsPerWeekday} dials and {data.targets.conversationsPerWeekday} conversations a weekday, {data.targets.appointmentsPerWeek} appointments a week.
+                  Calls are counted from logged call tasks.
+                </p>
+              </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Gauge className="h-4 w-4" />
                 Score out of 100
@@ -385,16 +467,38 @@ export default function CrmActivityPage() {
                         <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide">{getScoreLabel(rep.productivityStatus)}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                      <span>Leads contacted: <strong className="text-gray-900">{rep.leadsContacted}</strong></span>
-                      <span>Tasks completed: <strong className="text-gray-900">{rep.tasksCompleted}</strong></span>
-                      <span>Follow-ups: <strong className="text-gray-900">{rep.followUpsCompleted}/{rep.followUpsDue}</strong></span>
-                      <span>Active: <strong className="text-gray-900">{formatMinutes(rep.activeMinutes)}</strong></span>
-                      <span>Demos: <strong className="text-gray-900">{rep.demosScheduled}</strong></span>
-                      <span>Closed won: <strong className="text-gray-900">{rep.closedWon}</strong></span>
-                      <span>Active days: <strong className="text-gray-900">{rep.activeDays}</strong></span>
-                      <span>Close rate: <strong className="text-gray-900">{rep.closeRate}%</strong></span>
+                    <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-md bg-gray-50 py-2">
+                        <p className="text-lg font-bold text-gray-900">{rep.dials}</p>
+                        <p className="text-[11px] text-gray-500">Dials</p>
+                      </div>
+                      <div className="rounded-md bg-gray-50 py-2">
+                        <p className="text-lg font-bold text-gray-900">{rep.conversations}</p>
+                        <p className="text-[11px] text-gray-500">Conversations · {rep.contactRate}%</p>
+                      </div>
+                      <div className="rounded-md bg-gray-50 py-2">
+                        <p className="text-lg font-bold text-gray-900">{rep.appointments}</p>
+                        <p className="text-[11px] text-gray-500">Appointments · {rep.appointmentRate}%</p>
+                      </div>
                     </div>
+                    <div className="mb-3">
+                      <OutcomeBar rep={rep} />
+                    </div>
+                    <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                      <span>Call-backs on time: <strong className="text-gray-900">{rep.callBacksKept}/{rep.callBacksDue}</strong></span>
+                      <span>Active: <strong className="text-gray-900">{formatMinutes(rep.activeMinutes)}</strong></span>
+                      <span>First call: <strong className="text-gray-900">{formatTime(rep.firstCallAt)}</strong></span>
+                      <span>Last call: <strong className="text-gray-900">{formatTime(rep.lastCallAt)}</strong></span>
+                      <span>Active days: <strong className="text-gray-900">{rep.activeDays}</strong></span>
+                      <span className={rep.unopenedCalls > 0 ? "text-amber-700" : undefined}>
+                        Calls w/o lead open: <strong className={rep.unopenedCalls > 0 ? "text-amber-800" : "text-gray-900"}>{rep.unopenedCalls}</strong>
+                      </span>
+                    </div>
+                    <PaceChart rep={rep} />
+                    <p className="mt-2 flex items-center gap-1 text-[11px] text-gray-400">
+                      <PhoneCall className="h-3 w-3" />
+                      Score: dials {rep.scoreBreakdown.dials} · conversations {rep.scoreBreakdown.conversations} · appointments {rep.scoreBreakdown.appointments} · call-backs {rep.scoreBreakdown.callBacks}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -404,14 +508,14 @@ export default function CrmActivityPage() {
           <section className="mb-6 rounded-lg border border-gray-200 bg-white" data-testid="card-daily-sign-ins">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
               <div>
-                <h2 className="text-base font-semibold text-gray-900">Rep Sign-ins</h2>
-                <p className="text-xs text-gray-500">Range summary with exact times available per rep.</p>
+                <h2 className="text-base font-semibold text-gray-900">First CRM Opens</h2>
+                <p className="text-xs text-gray-500">The first time each day a rep opened the CRM in a browser, not a login.</p>
               </div>
               <span className="text-xs text-gray-500">{data.totals.signIns} total</span>
             </div>
             {signInSummaries.length === 0 ? (
               <div className="p-5">
-                <EmptyState>No sign-ins recorded for this range yet.</EmptyState>
+                <EmptyState>No CRM opens recorded for this range yet.</EmptyState>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -419,9 +523,9 @@ export default function CrmActivityPage() {
                   <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                       <th className="px-5 py-3 font-semibold">Rep</th>
-                      <th className="px-5 py-3 font-semibold">Sign-ins</th>
-                      <th className="px-5 py-3 font-semibold">First sign-in</th>
-                      <th className="px-5 py-3 font-semibold">Last sign-in</th>
+                      <th className="px-5 py-3 font-semibold">First opens</th>
+                      <th className="px-5 py-3 font-semibold">Earliest</th>
+                      <th className="px-5 py-3 font-semibold">Latest</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -464,7 +568,7 @@ export default function CrmActivityPage() {
                             <tr key={`${summary.rep.userId}-details`} className="bg-gray-50/60">
                               <td colSpan={4} className="px-12 py-4">
                                 {signInDayRows.length === 0 ? (
-                                  <p className="text-sm text-gray-500">No sign-in timestamps in this range.</p>
+                                  <p className="text-sm text-gray-500">No CRM opens in this range.</p>
                                 ) : (
                                   <div className="space-y-3">
                                     <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -481,7 +585,7 @@ export default function CrmActivityPage() {
                                         onClick={() => setShowAllSignInsForRepId(showAll ? null : summary.rep.userId)}
                                         className="text-sm font-medium text-teal-700 hover:text-teal-800"
                                       >
-                                        {showAll ? "Show recent sign-ins" : `View all sign-ins (${signInDayRows.length} days)`}
+                                        {showAll ? "Show recent days" : `View all days (${signInDayRows.length})`}
                                       </button>
                                     )}
                                   </div>

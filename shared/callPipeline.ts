@@ -59,3 +59,14 @@ export function isSetterWorkingStage(slug: string | null | undefined): boolean {
 export function canSetterMoveStage(fromSlug: string | null | undefined, toSlug: string): boolean {
   return isSetterWorkingStage(fromSlug) && (SETTER_MANUAL_STAGES as readonly string[]).includes(toSlug);
 }
+
+/** Outcomes where the setter reached a person. */
+export const CONVERSATION_OUTCOMES: readonly string[] = [CALL_OUTCOMES.callBack, CALL_OUTCOMES.appointmentSet, CALL_OUTCOMES.notInterested];
+
+/** Daily and weekly goals behind the Activity Intelligence call score. Tune these after real calling data comes in. */
+export const CALL_TARGETS = {
+  dialsPerWeekday: 60,
+  /** 60 dials at a ~15% contact rate. */
+  conversationsPerWeekday: 9,
+  appointmentsPerWeek: 3,
+} as const;
