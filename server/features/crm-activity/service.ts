@@ -230,9 +230,9 @@ export async function createActivityEvent(userId: string, data: {
 
 export async function getActivitySummary(options: number | { days?: number; from?: string; to?: string } = 1) {
   const range = makeRange(options);
-  // Nothing before the clean start counts, whatever range is picked.
+  // Call stats start at the clean start, whatever range is picked; sign-ins and CRM activity show in full.
   const countFrom = new Date(ACTIVITY_COUNT_FROM);
-  if (range.from < countFrom) range.from = countFrom;
+  const callFrom = range.from < countFrom ? countFrom : range.from;
 
   const reps = await db
     .select({
@@ -541,7 +541,7 @@ export async function getActivitySummary(options: number | { days?: number; from
       WHERE ft.task_type = ${CALL_TASK_TYPE}
         AND ft.completed = true
         AND ft.assigned_to IS NOT NULL
-        AND ft.completed_at >= ${range.from}
+        AND ft.completed_at >= ${callFrom}
         AND ft.completed_at < ${range.endExclusive}
     `),
     // Call-backs set since the clean start that have come due (today's count once logged or once the day is over),
@@ -559,7 +559,7 @@ export async function getActivitySummary(options: number | { days?: number; from
         AND ft.title = ${CALL_BACK_TASK_TITLE}
         AND ft.assigned_to IS NOT NULL
         AND ft.created_at >= ${countFrom}
-        AND ft.due_date::date >= ${toDateKey(range.from)}::date
+        AND ft.due_date::date >= ${toDateKey(callFrom)}::date
         AND ft.due_date < ${range.endExclusive}
         AND (ft.completed = true OR ft.due_date::date < (NOW() AT TIME ZONE ${CALL_TIMEZONE})::date)
       GROUP BY ft.assigned_to
