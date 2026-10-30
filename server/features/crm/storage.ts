@@ -16,6 +16,7 @@ import { getLocalFalconPrioritiesByLeadIds } from "./localFalconPriority";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 import type { ReportOutreachFilter } from "@shared/reportOutreach";
 import { buildSharedLeadFilterCondition } from "./leadFilters";
+import { CALL_BACK_TASK_TITLE, CALL_TASK_TYPE } from "@shared/callPipeline";
 
 export type EnrichedLead = CrmLead & {
   status: CrmLeadStatus | null;
@@ -41,6 +42,8 @@ export interface LeadFilters extends PaginationParams {
   fromWebsiteForm?: boolean;
   reportOutreach?: ReportOutreachFilter;
   trade?: string;
+  /** "due": only leads with an open call-back due today or earlier (Eastern time). */
+  callBacks?: "due";
 }
 
 interface SearchParams extends PaginationParams {
@@ -52,8 +55,13 @@ const leadTrade = sql<string | null>`coalesce(nullif(trim(${crmLeads.trade}), ''
 
 const reportEngaged = sql`EXISTS (SELECT 1 FROM ${scanReportDeliveries} d WHERE d.lead_id = ${crmLeads.id} AND d.sent_at IS NOT NULL AND (d.view_count > 0 OR d.cta_click_count > 0))`;
 
+const openCallBack = sql`t.lead_id = ${crmLeads.id} AND t.task_type = ${CALL_TASK_TYPE} AND t.title = ${CALL_BACK_TASK_TITLE} AND t.completed = false`;
+const callBackDue = sql`EXISTS (SELECT 1 FROM ${followupTasks} t WHERE ${openCallBack} AND t.due_date::date <= (now() AT TIME ZONE 'America/New_York')::date)`;
+// "YYYY-MM-DD HH:MM" sorts in time order, so the earliest call-back comes first.
+const nextCallBackAt = sql`(SELECT min(to_char(t.due_date, 'YYYY-MM-DD') || ' ' || coalesce(t.follow_up_time, '')) FROM ${followupTasks} t WHERE ${openCallBack})`;
+
 function buildLeadWhere(filters: LeadFilters) {
-  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, reportOutreach, trade } = filters;
+  const { search, statusId, source, assignedTo, tagId, tagIds = [], fromWebsiteForm, reportOutreach, trade, callBacks } = filters;
   const conditions = [];
 
   if (search) {
@@ -67,6 +75,7 @@ function buildLeadWhere(filters: LeadFilters) {
   if (statusId) conditions.push(eq(crmLeads.statusId, statusId));
   if (source) conditions.push(eq(crmLeads.source, source));
   if (trade) conditions.push(sql`lower(${leadTrade}) = lower(${trade.trim()})`);
+  if (callBacks === "due") conditions.push(callBackDue);
   const sharedFilter = buildSharedLeadFilterCondition(crmLeads.id, {
     tagIds: [...tagIds, ...(tagId ? [tagId] : [])],
     reportOutreach,
@@ -91,7 +100,8 @@ function buildLeadWhere(filters: LeadFilters) {
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
-function getLeadSort(reportOutreach?: ReportOutreachFilter) {
+function getLeadSort({ reportOutreach, callBacks }: LeadFilters) {
+  if (callBacks === "due") return [sql`${nextCallBackAt} ASC NULLS LAST`, desc(crmLeads.createdAt), desc(crmLeads.id)];
   return reportOutreach === "needs_attention"
     ? [sql`CASE WHEN ${reportEngaged} THEN 0 ELSE 1 END`, desc(crmLeads.createdAt), desc(crmLeads.id)]
     : [desc(crmLeads.createdAt), desc(crmLeads.id)];
@@ -102,7 +112,7 @@ export async function getLeads(filters: LeadFilters = {}) {
   const offset = (page - 1) * limit;
 
   const where = buildLeadWhere(filters);
-  const sort = getLeadSort(filters.reportOutreach);
+  const sort = getLeadSort(filters);
   const [items, totalResult] = await Promise.all([
     where
       ? db.select().from(crmLeads).where(where).orderBy(...sort).limit(limit).offset(offset)
@@ -116,10 +126,32 @@ export async function getLeads(filters: LeadFilters = {}) {
 }
 
 /** IDs of every lead matching the filters, for "select all matching". */
+export type OpenCallBack = { dueDate: Date; followUpTime: string | null; followUpTimezone: string | null };
+
+/** Each lead's earliest open call-back, for the call-back badge on the lead list. */
+export async function getOpenCallBacks(leadIds: string[]): Promise<Map<string, OpenCallBack>> {
+  const result = new Map<string, OpenCallBack>();
+  if (leadIds.length === 0) return result;
+  const rows = await db
+    .select({ leadId: followupTasks.leadId, dueDate: followupTasks.dueDate, followUpTime: followupTasks.followUpTime, followUpTimezone: followupTasks.followUpTimezone })
+    .from(followupTasks)
+    .where(and(
+      inArray(followupTasks.leadId, leadIds),
+      eq(followupTasks.taskType, CALL_TASK_TYPE),
+      eq(followupTasks.title, CALL_BACK_TASK_TITLE),
+      eq(followupTasks.completed, false),
+    ))
+    .orderBy(asc(followupTasks.dueDate), asc(followupTasks.followUpTime));
+  for (const { leadId, ...callBack } of rows) {
+    if (leadId && !result.has(leadId)) result.set(leadId, callBack);
+  }
+  return result;
+}
+
 export async function getLeadIds(filters: LeadFilters, max: number): Promise<{ ids: string[]; total: number }> {
   const where = buildLeadWhere(filters);
   const [rows, [{ total }]] = await Promise.all([
-    db.select({ id: crmLeads.id }).from(crmLeads).where(where).orderBy(...getLeadSort(filters.reportOutreach)).limit(max),
+    db.select({ id: crmLeads.id }).from(crmLeads).where(where).orderBy(...getLeadSort(filters)).limit(max),
     db.select({ total: count() }).from(crmLeads).where(where),
   ]);
   return { ids: rows.map((row) => row.id), total };
@@ -150,7 +182,7 @@ export async function getLeadNavigation(
   id: string,
   filters: LeadFilters = {},
 ): Promise<{ previous: LeadNavigationItem | null; next: LeadNavigationItem | null } | undefined> {
-  const sort = getLeadSort(filters.reportOutreach);
+  const sort = getLeadSort(filters);
   const orderedLeads = db
     .select({
       id: crmLeads.id,

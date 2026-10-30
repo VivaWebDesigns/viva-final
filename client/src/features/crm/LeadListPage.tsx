@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import { m, AnimatePresence } from "framer-motion";
 import {
   Search, ChevronDown, ChevronLeft, ChevronRight, Globe, Phone, Mail,
-  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, Users, Upload, UserPlus, UserCircle, MapPin,
+  X, Trash2, UserCheck, CircleDot, Tag, Tags, AlertTriangle, PhoneCall, Users, Upload, UserPlus, UserCircle, MapPin,
 } from "lucide-react";
 import { CsvImportModal, CsvExportDropdown } from "./CsvImportExportModal";
 import CreateLeadModal from "./CreateLeadModal";
@@ -36,6 +36,7 @@ import { useAdminLang } from "@/i18n/LanguageContext";
 import RecycledLeadIconStack from "@/components/RecycledLeadIconStack";
 import LeadTagBadges from "@/components/LeadTagBadges";
 import SalesPriorityBadge from "@/components/SalesPriorityBadge";
+import { formatTaskTimeDisplay, todayLocalString } from "@/components/taskScheduling";
 import type { SalesPrioritySnapshot } from "@shared/salesPriority";
 
 interface LeadWithRelations extends CrmLead {
@@ -53,6 +54,7 @@ interface LeadWithRelations extends CrmLead {
   tags?: CrmTag[];
   lastUnassignedFromUser?: { id: string; name: string } | null;
   salesPriority?: SalesPrioritySnapshot | null;
+  callBack?: { dueDate: string; followUpTime: string | null; followUpTimezone: string | null } | null;
 }
 
 interface LeadsResponse {
@@ -88,6 +90,7 @@ export default function LeadListPage() {
   const tagFilterIds = useMemo(() => new Set(tagFilters), [tagFilters]);
   const [assigneeFilter, setAssigneeFilter] = useState<string>(() => initialParams.get("assignedTo") ?? "all");
   const [tradeFilter, setTradeFilter] = useState<string>(() => initialParams.get("trade") ?? "all");
+  const [callBacksDue, setCallBacksDue] = useState(() => initialParams.get("callBacks") === "due");
   const [reportOutreachFilter, setReportOutreachFilter] = useState<ReportOutreachFilter | "all">(
     () => (initialParams.get("reportOutreach") as ReportOutreachFilter | null) ?? "all",
   );
@@ -114,6 +117,7 @@ export default function LeadListPage() {
     if (assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
     if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
     if (tradeFilter !== "all") params.set("trade", tradeFilter);
+    if (callBacksDue) params.set("callBacks", "due");
     if (page > 1) params.set("page", String(page));
     const query = params.toString();
     return query ? `?${query}` : "";
@@ -158,11 +162,12 @@ export default function LeadListPage() {
     if (assigneeFilter && assigneeFilter !== "all") params.set("assignedTo", assigneeFilter);
     if (reportOutreachFilter !== "all") params.set("reportOutreach", reportOutreachFilter);
     if (tradeFilter !== "all") params.set("trade", tradeFilter);
+    if (callBacksDue) params.set("callBacks", "due");
     return params;
   };
 
   const { data: leadsData, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, reportOutreachFilter, tagFilters, tradeFilter, page],
+    queryKey: ["/api/crm/leads", search, statusFilter, sourceFilter, assigneeFilter, reportOutreachFilter, tagFilters, tradeFilter, callBacksDue, page],
     staleTime: STALE.FAST,
     refetchOnWindowFocus: true,
     queryFn: async () => {
@@ -374,6 +379,29 @@ export default function LeadListPage() {
     return <Badge variant="outline" className={`text-xs ${className}`} data-testid={`badge-report-outreach-${lead.id}`}>{label}</Badge>;
   };
 
+  const getCallBackBadge = (lead: LeadWithRelations) => {
+    const callBack = lead.callBack;
+    if (!callBack) return null;
+    // Call-back due dates are stored as midnight UTC of the chosen day.
+    const dueDay = callBack.dueDate.slice(0, 10);
+    const today = todayLocalString();
+    const time = callBack.followUpTime ? formatTaskTimeDisplay(callBack.dueDate, callBack.followUpTime, callBack.followUpTimezone) : null;
+    let label: string;
+    let className: string;
+    if (dueDay < today) {
+      label = "Call back overdue";
+      className = "bg-red-100 text-red-800 border-red-300";
+    } else if (dueDay === today) {
+      label = time ? `Call back today · ${time}` : "Call back today";
+      className = "bg-violet-100 text-violet-900 border-violet-300";
+    } else {
+      const day = new Date(`${dueDay}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      label = time ? `Call back ${day} · ${time}` : `Call back ${day}`;
+      className = "bg-slate-100 text-slate-700 border-slate-300";
+    }
+    return <Badge variant="outline" className={`text-xs ${className}`} data-testid={`badge-call-back-${lead.id}`}>{label}</Badge>;
+  };
+
   const toggleTagId = (id: string) =>
     setBulkTagIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
 
@@ -513,6 +541,15 @@ export default function LeadListPage() {
             data-testid="button-report-needs-attention"
           >
             <AlertTriangle className="mr-1.5 h-4 w-4" /> Needs attention
+          </Button>
+          <Button
+            type="button"
+            variant={callBacksDue ? "default" : "outline"}
+            className="w-full lg:w-auto"
+            onClick={() => { setCallBacksDue(!callBacksDue); setPage(1); setSelectedIds(new Set()); }}
+            data-testid="button-call-backs-due"
+          >
+            <PhoneCall className="mr-1.5 h-4 w-4" /> Call backs due
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -724,6 +761,7 @@ export default function LeadListPage() {
                               {getLeadDisplayTitle(lead)}
                             </h3>
                             {getStatusBadge(lead)}
+                            {getCallBackBadge(lead)}
                             {getReportOutreachBadge(lead)}
                             <SalesPriorityBadge
                               salesPriority={lead.salesPriority}

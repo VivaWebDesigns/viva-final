@@ -213,6 +213,7 @@ const leadFilterQuerySchema = z.object({
   fromWebsiteForm: z.enum(["true", "false"]).optional(),
   reportOutreach: z.enum(REPORT_OUTREACH_FILTERS).optional(),
   trade: z.string().trim().min(1).max(200).optional(),
+  callBacks: z.enum(["due"]).optional(),
 });
 
 /** Lead list filters from the query string; restricted roles only ever see their own leads. */
@@ -238,11 +239,12 @@ router.get("/leads", requireRole("admin", "developer", "sales_rep", "lead_gen"),
       page: page ? parseInt(page as string, 10) : undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
     });
-    const [outreach, enriched] = await Promise.all([
-      getReportOutreachStates(result.items.map(lead => lead.id), db, true), crmStorage.enrichLeads(result.items),
+    const leadIds = result.items.map(lead => lead.id);
+    const [outreach, enriched, callBacks] = await Promise.all([
+      getReportOutreachStates(leadIds, db, true), crmStorage.enrichLeads(result.items), crmStorage.getOpenCallBacks(leadIds),
     ]);
     const leads = enriched.map(l => ({
-      ...stripSensitiveLeadFields(l, req), ...outreach.get(l.id),
+      ...stripSensitiveLeadFields(l, req), ...outreach.get(l.id), callBack: callBacks.get(l.id) ?? null,
     }));
     res.json({ leads, total: result.total, page: result.page, pageSize: result.limit });
   } catch (error: any) {
