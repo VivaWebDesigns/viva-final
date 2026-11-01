@@ -1,11 +1,25 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Inbox, Search, Mail, Phone, Building2, MapPin, MessageSquare } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Inbox, Search, Mail, Phone, Building2, MapPin, MessageSquare, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
-import { STALE } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, STALE } from "@/lib/queryClient";
 import { useAdminLang } from "@/i18n/LanguageContext";
+import { useAuth } from "@features/auth/useAuth";
 
 interface Submission {
   id: string;
@@ -38,6 +52,40 @@ export default function SubmissionsPage() {
 
   const submissions = data?.items ?? [];
   const total = data?.total ?? 0;
+
+  const { role } = useAuth();
+  const canDelete = role === "admin";
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // Only rows still on screen count as selected, so a new search never deletes hidden rows.
+  const selected = submissions.filter((submission) => selectedIds.has(submission.id));
+  const allSelected = submissions.length > 0 && selected.length === submissions.length;
+
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+  const toggleAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(submissions.map((submission) => submission.id)) : new Set());
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) =>
+      (await apiRequest("POST", "/api/admin/submissions/delete", { ids })).json() as Promise<{ deleted: number }>,
+    onSuccess: (result) => {
+      setSelectedIds(new Set());
+      setConfirmOpen(false);
+      queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/admin/submissions") });
+      toast({ title: t.submissions.deleted.replace("{{count}}", String(result.deleted)) });
+    },
+    onError: (err: Error) => toast({ title: t.common.error, description: err.message, variant: "destructive" }),
+  });
 
   return (
     <div className="h-full flex flex-col" data-testid="page-submissions">
@@ -76,6 +124,31 @@ export default function SubmissionsPage() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+          {canDelete && (
+            <div className="flex items-center justify-between gap-3 bg-white rounded-xl border border-gray-200 px-4 py-2.5">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={(checked) => toggleAll(checked === true)}
+                  data-testid="checkbox-select-all-submissions"
+                />
+                {selected.length > 0
+                  ? t.submissions.selected.replace("{{count}}", String(selected.length))
+                  : t.submissions.selectAll}
+              </label>
+              {selected.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setConfirmOpen(true)}
+                  data-testid="button-delete-submissions"
+                >
+                  <Trash2 className="w-4 h-4 mr-1.5" />
+                  {t.submissions.deleteSelected.replace("{{count}}", String(selected.length))}
+                </Button>
+              )}
+            </div>
+          )}
           {total > 100 && !search && (
             <p className="text-xs text-gray-400">{t.submissions.showingNewest}</p>
           )}
@@ -86,7 +159,17 @@ export default function SubmissionsPage() {
               data-testid={`submission-${submission.id}`}
             >
               <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                <div className="min-w-0">
+                <div className="min-w-0 flex items-start gap-3">
+                  {canDelete && (
+                    <Checkbox
+                      className="mt-1"
+                      checked={selectedIds.has(submission.id)}
+                      onCheckedChange={(checked) => toggleOne(submission.id, checked === true)}
+                      aria-label={submission.name}
+                      data-testid={`checkbox-submission-${submission.id}`}
+                    />
+                  )}
+                  <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="font-semibold text-gray-900">{submission.name}</h2>
                     {submission.smsConsent && (
@@ -129,6 +212,7 @@ export default function SubmissionsPage() {
                       )}
                     </div>
                   )}
+                  </div>
                 </div>
 
                 <time className="text-xs text-gray-400 whitespace-nowrap" dateTime={submission.createdAt}>
@@ -151,6 +235,29 @@ export default function SubmissionsPage() {
           ))}
         </div>
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.submissions.deleteTitle.replace("{{count}}", String(selected.length))}</AlertDialogTitle>
+            <AlertDialogDescription>{t.submissions.deleteWarning}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                deleteMutation.mutate(selected.map((submission) => submission.id));
+              }}
+              data-testid="button-confirm-delete-submissions"
+            >
+              {t.common.delete}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

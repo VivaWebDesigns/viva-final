@@ -164,6 +164,12 @@ export const en = {
     business: "Business",
     details: "Submission details",
     smsConsent: "SMS consent",
+    selectAll: "Select all",
+    selected: "{{count}} selected",
+    deleteSelected: "Delete selected ({{count}})",
+    deleteTitle: "Delete {{count}} submissions?",
+    deleteWarning: "These form submissions will be permanently deleted. Leads already in the CRM are not affected. This cannot be undone.",
+    deleted: "{{count}} submissions deleted",
   },
   crm: {
     title: "CRM Leads",

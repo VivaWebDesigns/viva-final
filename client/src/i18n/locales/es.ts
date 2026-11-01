@@ -166,6 +166,12 @@ export const es: AdminTranslations = {
     business: "Empresa",
     details: "Detalles del formulario",
     smsConsent: "Consentimiento SMS",
+    selectAll: "Seleccionar todo",
+    selected: "{{count}} seleccionados",
+    deleteSelected: "Eliminar seleccionados ({{count}})",
+    deleteTitle: "¿Eliminar {{count}} formularios?",
+    deleteWarning: "Estos formularios se eliminarán permanentemente. Los prospectos que ya están en el CRM no se verán afectados. Esta acción no se puede deshacer.",
+    deleted: "{{count}} formularios eliminados",
   },
   crm: {
     title: "Prospectos CRM",

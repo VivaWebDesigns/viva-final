@@ -10,7 +10,7 @@ import {
   followupTasks, onboardingRecords, onboardingChecklistItems, onboardingNotes,
   attachments, demoConfigs, marketplacePendingOutreach,
 } from "@shared/schema";
-import { sql, desc, eq, or, ilike } from "drizzle-orm";
+import { sql, desc, eq, or, ilike, inArray } from "drizzle-orm";
 import { auth } from "../auth/auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { logAudit } from "../audit/service";
@@ -92,6 +92,22 @@ router.get("/submissions", requireRole("admin", "developer"), async (req, res) =
   ]);
 
   res.json({ items, total: countRows[0]?.count ?? 0 });
+});
+
+const deleteSubmissionsSchema = z.object({ ids: z.array(z.string().min(1)).min(1).max(200) });
+
+router.post("/submissions/delete", requireRole("admin"), async (req, res) => {
+  const parsed = deleteSubmissionsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Select at least one submission." });
+  const deleted = await db.delete(contacts).where(inArray(contacts.id, parsed.data.ids)).returning({ id: contacts.id });
+  await logAudit({
+    userId: req.authUser?.id,
+    action: "delete",
+    entity: "contact_submission",
+    metadata: { count: deleted.length, ids: deleted.map((row) => row.id) },
+    ipAddress: req.ip,
+  });
+  res.json({ deleted: deleted.length });
 });
 
 router.get("/audit-logs", requireRole("admin", "developer"), async (req, res) => {
