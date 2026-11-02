@@ -1258,6 +1258,8 @@ export const es: AdminTranslations = {
     timezone: "Zona horaria del prospecto",
     notes: "Notas (opcional)",
     notesPlaceholder: "Algo importante de esta llamada...",
+    calledEarlier: "Hice esta llamada antes",
+    calledAt: "¿Cuándo fue la llamada?",
     back: "Atrás",
     save: "Guardar",
     saving: "Guardando...",

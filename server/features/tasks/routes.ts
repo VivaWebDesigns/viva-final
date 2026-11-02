@@ -263,6 +263,8 @@ const completeTaskSchema = z.object({
   callBackDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   callBackTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   callBackTimezone: z.string().optional(),
+  // When the call really happened, for calls logged after the fact (up to 7 days back).
+  calledAt: z.string().datetime().optional(),
 }).optional();
 
 /** The task's deal, falling back to the lead's open deal for tasks created without one. */
@@ -497,7 +499,16 @@ router.put("/:id/complete", requireRole("admin", "developer", "sales_rep"), asyn
       }
     }
 
-    const task = await taskStorage.completeTask(req.params.id as string, body ?? undefined);
+    let completedAt: Date | undefined;
+    if (body?.calledAt) {
+      completedAt = new Date(body.calledAt);
+      const now = Date.now();
+      if (completedAt.getTime() > now + 5 * 60_000 || completedAt.getTime() < now - 7 * 24 * 60 * 60_000) {
+        return res.status(400).json({ message: "The call time must be within the last 7 days." });
+      }
+    }
+
+    const task = await taskStorage.completeTask(req.params.id as string, { ...body, completedAt });
     await logAudit({
       userId: req.authUser?.id,
       action: "update",

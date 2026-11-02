@@ -201,6 +201,18 @@ describe("Appointment Setter call outcomes (as Richard)", () => {
     expect(mockMoveOpportunity).not.toHaveBeenCalled();
   });
 
+  it("dates a call logged after the fact to when it was made", async () => {
+    const calledAt = new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString();
+    await completeCall({ outcome: "Left voicemail", calledAt });
+    expect(mockCompleteTask).toHaveBeenCalledWith("task-1", expect.objectContaining({ completedAt: new Date(calledAt) }));
+  });
+
+  it("rejects a call time more than 7 days back or in the future", async () => {
+    expect((await completeCall({ outcome: "No answer", calledAt: new Date(Date.now() - 8 * 24 * 60 * 60_000).toISOString() })).status).toBe(400);
+    expect((await completeCall({ outcome: "No answer", calledAt: new Date(Date.now() + 60 * 60_000).toISOString() })).status).toBe(400);
+    expect(mockCompleteTask).not.toHaveBeenCalled();
+  });
+
   it("locks Richard out once the lead is past Call Scheduled", async () => {
     dbState.stageSlug = "demo-scheduled";
     const res = await completeCall({ outcome: "Not interested" });

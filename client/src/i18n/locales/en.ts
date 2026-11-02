@@ -1256,6 +1256,8 @@ export const en = {
     timezone: "Lead's time zone",
     notes: "Notes (optional)",
     notesPlaceholder: "Anything worth remembering about this call...",
+    calledEarlier: "I made this call earlier",
+    calledAt: "When was the call?",
     back: "Back",
     save: "Save",
     saving: "Saving...",

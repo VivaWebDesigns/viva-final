@@ -243,11 +243,11 @@ export async function getTaskById(id: string): Promise<FollowupTask | undefined>
   return result;
 }
 
-export async function completeTask(id: string, extras?: { outcome?: string; completionNote?: string }): Promise<FollowupTask> {
+export async function completeTask(id: string, extras?: { outcome?: string; completionNote?: string; completedAt?: Date }): Promise<FollowupTask> {
   const [result] = await db.update(followupTasks)
     .set({
       completed: true,
-      completedAt: new Date(),
+      completedAt: extras?.completedAt ?? new Date(),
       ...(extras?.outcome != null ? { outcome: extras.outcome } : {}),
       ...(extras?.completionNote != null ? { completionNote: extras.completionNote } : {}),
     })

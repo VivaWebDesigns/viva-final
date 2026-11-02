@@ -35,6 +35,13 @@ const LEAD_TIMEZONES = [
   { value: "America/Los_Angeles", labelKey: "timezonePacific" },
 ] as const;
 
+/** The local date-time for a datetime-local input, shifted by whole days. */
+function localDateTimeNow(dayOffset = 0) {
+  const d = new Date(Date.now() + dayOffset * 24 * 60 * 60_000);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
 /** Each screen of the prompt; "details" is the last one, where the chosen outcome is saved. */
 type Step = "result" | "noAnswer" | "answered" | "afterSms" | "details";
 type CallOutcome = typeof CALL_OUTCOMES[keyof typeof CALL_OUTCOMES];
@@ -65,6 +72,9 @@ function CallTaskModalContent({ open, onClose, task, onSuccess }: CallTaskModalP
   const [time, setTime] = useState("");
   const [timezone, setTimezone] = useState<string>("America/New_York");
   const [notes, setNotes] = useState("");
+  // Set only when logging a call that happened earlier, so it counts on the day it was made.
+  const [calledEarlier, setCalledEarlier] = useState(false);
+  const [calledAt, setCalledAt] = useState("");
 
   const outcomeLabels: Record<CallOutcome, string> = {
     [CALL_OUTCOMES.leftVoicemail]: `${c.noAnswer} → ${c.leftVoicemail}`,
@@ -88,7 +98,7 @@ function CallTaskModalContent({ open, onClose, task, onSuccess }: CallTaskModalP
   };
 
   const needsTime = outcome === CALL_OUTCOMES.appointmentSet || outcome === CALL_OUTCOMES.callBack;
-  const canSave = !!outcome && (!needsTime || (date !== "" && time !== ""));
+  const canSave = !!outcome && (!needsTime || (date !== "" && time !== "")) && (!calledEarlier || calledAt !== "");
   const stageSlug = outcome ? CALL_OUTCOME_STAGE[outcome] : null;
   const stageName = stageSlug ? (t.pipeline.stageNames as Record<string, string>)[stageSlug] ?? stageSlug : "";
 
@@ -98,6 +108,7 @@ function CallTaskModalContent({ open, onClose, task, onSuccess }: CallTaskModalP
       await apiRequest("PUT", `/api/tasks/${task.id}/complete`, {
         outcome,
         completionNote,
+        ...(calledEarlier && calledAt ? { calledAt: new Date(calledAt).toISOString() } : {}),
         ...(outcome === CALL_OUTCOMES.appointmentSet ? { demoDate: date, demoTime: time, demoTimezone: timezone } : {}),
         ...(outcome === CALL_OUTCOMES.callBack ? { callBackDate: date, callBackTime: time, callBackTimezone: timezone } : {}),
       });
@@ -220,6 +231,21 @@ function CallTaskModalContent({ open, onClose, task, onSuccess }: CallTaskModalP
                   </div>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={calledEarlier} onChange={(e) => setCalledEarlier(e.target.checked)}
+                    className="h-4 w-4 accent-teal-600" data-testid="checkbox-called-earlier" />
+                  {c.calledEarlier}
+                </label>
+                {calledEarlier && (
+                  <div className="space-y-1">
+                    <Label className="text-sm" htmlFor="call-called-at">{c.calledAt}</Label>
+                    <Input id="call-called-at" type="datetime-local" value={calledAt} max={localDateTimeNow()}
+                      min={localDateTimeNow(-7)} onChange={(e) => setCalledAt(e.target.value)} data-testid="input-called-at" />
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-1">
                 <Label htmlFor="call-notes">{c.notes}</Label>

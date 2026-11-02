@@ -13,6 +13,7 @@ import {
   Phone,
   PhoneCall,
   PhoneIncoming,
+  PhoneOff,
   RotateCcw,
   Target,
   Users,
@@ -27,6 +28,8 @@ interface CallActivity {
   callBacksDue: number;
   callBacksKept: number;
   unopenedCalls: number;
+  notesWritten: number;
+  unloggedCalls: number;
 }
 
 interface RepActivity extends CallActivity {
@@ -426,7 +429,7 @@ export default function CrmActivityPage() {
         </div>
       ) : data ? (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-7">
+          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-8">
             <StatCard label="Dials" value={data.totals.dials} icon={Phone} tone="bg-teal-500" />
             <StatCard label="Conversations" value={`${data.totals.conversations} · ${data.totals.contactRate}%`} icon={PhoneIncoming} tone="bg-indigo-500" />
             <StatCard label="Appointments" value={`${data.totals.appointments} · ${data.totals.appointmentRate}%`} icon={Target} tone="bg-emerald-500" />
@@ -434,6 +437,7 @@ export default function CrmActivityPage() {
             <StatCard label="CRM active time" value={formatMinutes(data.totals.activeMinutes)} icon={Clock} tone="bg-cyan-500" />
             <StatCard label="First CRM opens" value={data.totals.signIns} icon={Users} tone="bg-slate-500" />
             <StatCard label="Calls w/o lead open" value={data.totals.unopenedCalls} icon={AlertTriangle} tone={data.totals.unopenedCalls > 0 ? "bg-amber-500" : "bg-slate-400"} />
+            <StatCard label="Noted, call not logged" value={data.totals.unloggedCalls} icon={PhoneOff} tone={data.totals.unloggedCalls > 0 ? "bg-red-500" : "bg-slate-400"} />
           </div>
 
           <section className="mb-6 rounded-lg border border-gray-200 bg-white" data-testid="card-productivity-scores">
@@ -494,6 +498,10 @@ export default function CrmActivityPage() {
                       <span>Active days: <strong className="text-gray-900">{rep.activeDays}</strong></span>
                       <span className={rep.unopenedCalls > 0 ? "text-amber-700" : undefined}>
                         Calls w/o lead open: <strong className={rep.unopenedCalls > 0 ? "text-amber-800" : "text-gray-900"}>{rep.unopenedCalls}</strong>
+                      </span>
+                      <span>Notes written: <strong className="text-gray-900">{rep.notesWritten}</strong></span>
+                      <span className={rep.unloggedCalls > 0 ? "text-red-700" : undefined}>
+                        Noted, call not logged: <strong className={rep.unloggedCalls > 0 ? "text-red-800" : "text-gray-900"}>{rep.unloggedCalls}</strong>
                       </span>
                     </div>
                     <PaceChart rep={rep} />

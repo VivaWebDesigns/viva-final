@@ -258,7 +258,7 @@ export async function getActivitySummary(options: number | { days?: number; from
     .groupBy(user.id, user.name, user.email, user.role)
     .orderBy(desc(sql`COALESCE(SUM(${crmActivityEvents.activeMs}), 0)`));
 
-  const [leadAssignments, leadNotes, pipelineActions, taskRows, signInRows, firstTouchRows, outcomeRows, dailyRows, callRows, callBackRows] = await Promise.all([
+  const [leadAssignments, leadNotes, pipelineActions, taskRows, signInRows, firstTouchRows, outcomeRows, dailyRows, callRows, callBackRows, writtenNoteRows] = await Promise.all([
     db
       .select({
         userId: crmLeads.assignedTo,
@@ -564,7 +564,33 @@ export async function getActivitySummary(options: number | { days?: number; from
         AND (ft.completed = true OR ft.due_date::date < (NOW() AT TIME ZONE ${CALL_TIMEZONE})::date)
       GROUP BY ft.assigned_to
     `),
+    // Notes typed on the lead page, and how many companies got a note that day with no call logged for them that day,
+    // which is how calls made outside the CRM dialer show up.
+    db.execute(sql`
+      SELECT
+        n.user_id AS "userId",
+        COUNT(*)::int AS "notes",
+        COUNT(DISTINCT (n.company_id, ((n.created_at AT TIME ZONE 'UTC') AT TIME ZONE ${CALL_TIMEZONE})::date)) FILTER (
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM followup_tasks ft
+            LEFT JOIN crm_leads cl ON cl.id = ft.lead_id
+            WHERE ft.task_type = ${CALL_TASK_TYPE}
+              AND ft.completed = true
+              AND COALESCE(ft.company_id, cl.company_id) = n.company_id
+              AND ((ft.completed_at AT TIME ZONE 'UTC') AT TIME ZONE ${CALL_TIMEZONE})::date
+                = ((n.created_at AT TIME ZONE 'UTC') AT TIME ZONE ${CALL_TIMEZONE})::date
+          )
+        )::int AS "unloggedCalls"
+      FROM client_notes n
+      WHERE n.user_id IS NOT NULL
+        AND n.company_id IS NOT NULL
+        AND n.created_at >= ${range.from}
+        AND n.created_at < ${range.endExclusive}
+      GROUP BY n.user_id
+    `),
   ]);
+  const writtenNotesMap = new Map((writtenNoteRows.rows as Array<{ userId: string; notes: number; unloggedCalls: number }>).map((row) => [row.userId, row]));
 
   const callRowsByUser = new Map<string, CallRow[]>();
   for (const row of callRows.rows as CallRow[]) {
@@ -688,6 +714,8 @@ export async function getActivitySummary(options: number | { days?: number; from
       leadsContacted,
       leadTouchRate: pct(leadsContacted, assigned),
       leadNotes: notesMap.get(rep.userId)?.count ?? 0,
+      notesWritten: writtenNotesMap.get(rep.userId)?.notes ?? 0,
+      unloggedCalls: writtenNotesMap.get(rep.userId)?.unloggedCalls ?? 0,
       pipelineActions: Math.max(pipelineMap.get(rep.userId)?.count ?? 0, outcomes?.pipelineActions ?? 0),
       tasksCompleted,
       followUpsDue,
@@ -735,6 +763,8 @@ export async function getActivitySummary(options: number | { days?: number; from
     callBacksDue: acc.callBacksDue + rep.callBacksDue,
     callBacksKept: acc.callBacksKept + rep.callBacksKept,
     unopenedCalls: acc.unopenedCalls + rep.unopenedCalls,
+    notesWritten: acc.notesWritten + rep.notesWritten,
+    unloggedCalls: acc.unloggedCalls + rep.unloggedCalls,
   }), {
     activeMinutes: 0,
     signIns: 0,
@@ -756,6 +786,8 @@ export async function getActivitySummary(options: number | { days?: number; from
     callBacksDue: 0,
     callBacksKept: 0,
     unopenedCalls: 0,
+    notesWritten: 0,
+    unloggedCalls: 0,
   });
 
   const repNameMap = new Map(reps.map((rep) => [rep.userId, rep.name]));
