@@ -43,7 +43,7 @@ describe("Viva website schema", () => {
     const projectRoot = path.resolve(import.meta.dirname, "../..");
     for (const pageName of publicPageNames) {
       const page = fs.readFileSync(path.join(projectRoot, "client/public", pageName), "utf8");
-      const footer = page.split('<footer class="site-footer">')[1];
+      const footer = page.split("<footer ")[1];
       expect(footer, `${pageName} footer`).toContain("Based in Charlotte, NC");
       expect(footer, `${pageName} weekday hours`).toContain("Mon&ndash;Fri: 8 AM&ndash;6 PM");
       expect(footer, `${pageName} Saturday hours`).toContain("Sat: 10 AM&ndash;4 PM");

@@ -32,7 +32,7 @@ describe("public contact form contract", () => {
     expect(contactHtml).not.toContain('name="smsConsent"');
     expect(contactHtml).toContain('href="/privacy-policy"');
 
-    expect(contactHtml).not.toContain('name="website"');
+    expect(contactHtml).toContain('name="website"');
     expect(contactHtml).not.toContain('name="city"');
     expect(contactHtml).not.toContain('name="trade"');
   });
@@ -75,22 +75,10 @@ describe("public contact form contract", () => {
     expect(scanThanksHtml).not.toContain('href="/scan">Get Your Free Visibility Scan');
   });
 
-  it("keeps the contact card location concise", () => {
-    expect(contactHtml).toContain("<dt>Based in</dt><dd>Charlotte, NC</dd>");
-  });
-
-  it("offers the Calendly Google Meet booking option", () => {
-    const calendlyUrl = "https://calendly.com/vivawebdesigns/new-meeting";
-    const calendlyLinks = contactHtml.match(
-      new RegExp(`href="${calendlyUrl}"`, "g"),
-    );
-
-    expect(calendlyLinks).toHaveLength(3);
-    expect(contactHtml).toContain("Book a Google Meet");
-    expect(contactHtml).toContain("Google Visibility Review");
-    expect(contactHtml).toContain("Review the weak spots on your heat map");
-    expect(contactHtml).toContain("Book My Video Call");
-    expect(contactHtml).toContain("matt-visibility-review-20260828-v4.webp?v=20260828-upright-v4");
-    expect(contactHtml).toContain('target="_blank" rel="noopener noreferrer"');
+  it("offers the direct booking link and submits project details to Viva", () => {
+    expect(contactHtml).toContain('href="https://calendly.com/vivawebdesigns/new-meeting"');
+    expect(contactHtml).toContain('name="service"');
+    expect(contactHtml).toContain('name="timing"');
+    expect(contactHtml).toContain('type="submit">Send my message');
   });
 });

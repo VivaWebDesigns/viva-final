@@ -2,8 +2,13 @@ import type { Express } from "express";
 
 export const cleanPublicPageFiles: Record<string, string> = {
   "/results": "results.html",
-  "/results/glass-and-door-pro": "results.html",
-  "/results/carolina-custom-automation": "results.html",
+  "/results/glass-and-door-pro": "results-glass-and-door-pro.html",
+  "/results/carolina-custom-automation": "results-carolina-custom-automation.html",
+  "/website-design": "website-design.html",
+  "/seo-market-expansion": "seo-market-expansion.html",
+  "/website-care": "website-care.html",
+  "/about": "about.html",
+  "/pricing": "pricing.html",
   "/contact": "contact.html",
   "/privacy-policy": "privacy-policy.html",
   "/terms": "terms.html",
@@ -13,21 +18,10 @@ export const cleanPublicPageFiles: Record<string, string> = {
 };
 
 export const cleanPublicPageRedirects: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(cleanPublicPageFiles).flatMap(([url, file]) => [
+    [`/${file}`, url], [`${url}/`, url],
+  ])),
   "/index.html": "/",
-  "/results.html": "/results",
-  "/results/": "/results",
-  "/contact.html": "/contact",
-  "/contact/": "/contact",
-  "/privacy-policy.html": "/privacy-policy",
-  "/privacy-policy/": "/privacy-policy",
-  "/terms.html": "/terms",
-  "/terms/": "/terms",
-  "/scan.html": "/scan",
-  "/scan/": "/scan",
-  "/thanks.html": "/thanks",
-  "/thanks/": "/thanks",
-  "/contact-thanks.html": "/contact-thanks",
-  "/contact-thanks/": "/contact-thanks",
 };
 
 export function registerCleanPublicPageRedirects(app: Express) {
@@ -37,6 +31,6 @@ export function registerCleanPublicPageRedirects(app: Express) {
     const cleanPath = cleanPublicPageRedirects[req.path];
     if (!cleanPath) return next();
 
-    return res.redirect(301, cleanPath);
+    return res.redirect(301, cleanPath + req.originalUrl.slice(req.path.length));
   });
 }

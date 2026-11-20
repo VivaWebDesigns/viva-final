@@ -29,6 +29,9 @@ beforeAll(async () => {
   fs.writeFileSync(path.join(tmpDir, "index.html"), "<html>app shell</html>");
   fs.writeFileSync(path.join(tmpDir, "_app.html"), "<html>spa shell</html>");
   fs.writeFileSync(path.join(tmpDir, "results.html"), "<html>results page</html>");
+  for (const slug of ["glass-and-door-pro", "carolina-custom-automation"]) {
+    fs.writeFileSync(path.join(tmpDir, `results-${slug}.html`), `<html>${slug} case study</html>`);
+  }
   fs.writeFileSync(path.join(tmpDir, "contact.html"), "<html>contact page</html>");
   fs.writeFileSync(path.join(tmpDir, "scan.html"), "<html>scan page</html>");
   fs.writeFileSync(path.join(tmpDir, "thanks.html"), "<html>thanks page</html>");
@@ -103,8 +106,8 @@ describe("HTML shell cache policy", () => {
 describe("Clean public page routes", () => {
   it.each([
     ["/results", "results page"],
-    ["/results/glass-and-door-pro", "results page"],
-    ["/results/carolina-custom-automation", "results page"],
+    ["/results/glass-and-door-pro", "glass-and-door-pro case study"],
+    ["/results/carolina-custom-automation", "carolina-custom-automation case study"],
     ["/contact", "contact page"],
     ["/scan", "scan page"],
     ["/thanks", "thanks page"],

@@ -22,9 +22,7 @@ describe("Google Tag Manager installation", () => {
     const source = readSource(`client/public/${page}`);
 
     expect(source).toContain("<head>\n    <!-- Google Tag Manager -->");
-    expect(source).toContain(
-      "<body>\n    <!-- Google Tag Manager (noscript) -->",
-    );
+    expect(source).toMatch(/<body[^>]*>\s*<!-- Google Tag Manager \(noscript\) -->/);
     expect(source.match(/GTM-W32XD49H/g)).toHaveLength(2);
   });
 

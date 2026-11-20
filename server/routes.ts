@@ -170,8 +170,10 @@ export async function registerRoutes(
 
       const website = typeof req.body.website === "string" ? req.body.website.trim() : "";
       const data = contactSubmitSchema.parse(req.body);
-      if (website) {
-        data.message = [data.message, `Website: ${website}`].filter(Boolean).join("\n\n");
+      const timing = typeof req.body.timing === "string" ? req.body.timing.trim() : "";
+      if (website || timing) {
+        data.message = [data.message, website && `Website: ${website}`, timing && `Timing: ${timing}`]
+          .filter(Boolean).join("\n\n");
       }
       if (data.phone) {
         const normalized = normalizePhoneDigits(data.phone);
@@ -205,6 +207,7 @@ export async function registerRoutes(
                 ${data.email ? `<tr><td><strong>Email</strong></td><td>${escapeHtml(data.email)}</td></tr>` : ""}
                 <tr><td><strong>SMS Consent</strong></td><td>${smsConsented ? "Granted" : "Not granted"}</td></tr>
                 ${data.city ? `<tr><td><strong>City</strong></td><td>${escapeHtml(data.city)}</td></tr>` : ""}
+                ${data.service ? `<tr><td><strong>Service</strong></td><td>${escapeHtml(data.service)}</td></tr>` : ""}
                 ${data.trade ? `<tr><td><strong>Trade</strong></td><td>${escapeHtml(data.trade)}</td></tr>` : ""}
                 ${data.message ? `<tr><td><strong>Message</strong></td><td>${escapeHtml(data.message)}</td></tr>` : ""}
               </table>
