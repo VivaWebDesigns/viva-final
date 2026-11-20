@@ -217,7 +217,7 @@ export function buildScanReportLandingPage(input: {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow,noarchive">
     <title>Your Google Maps Visibility Scan | Viva Web Designs</title>
-    <link rel="icon" href="/favicon.ico?v=20260707-viva-favicon" sizes="any">
+    <link rel="icon" href="/favicon.ico?v=20261120-viva-mark" sizes="any">
     <style>
       :root{color-scheme:light;--navy:#061a3d;--blue:#0f659e;--teal:#0f766e;--ink:#172033;--muted:#5e697b;--line:#dbe4ea;--soft:#f4f7fa}
       *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--soft);color:var(--ink);font-family:Inter,Arial,sans-serif;line-height:1.55}
