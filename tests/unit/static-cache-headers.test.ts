@@ -103,6 +103,25 @@ describe("HTML shell cache policy", () => {
   });
 });
 
+describe("App shell status codes", () => {
+  it.each(["/admin", "/admin/crm/leads/123", "/login", "/contacto"])(
+    "serves %s with 200",
+    async (url) => {
+      const { status } = await get(url);
+      expect(status).toBe(200);
+    },
+  );
+
+  it.each(["/some-spa-route", "/blog", "/services/old-page"])(
+    "serves unknown path %s with a real 404",
+    async (url) => {
+      const res = await fetch(baseUrl + url);
+      expect(res.status).toBe(404);
+      expect(await res.text()).toContain("spa shell");
+    },
+  );
+});
+
 describe("Clean public page routes", () => {
   it.each([
     ["/results", "results page"],

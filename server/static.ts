@@ -3,6 +3,16 @@ import fs from "fs";
 import path from "path";
 import { cleanPublicPageFiles } from "./public-pages";
 
+function isAppShellPath(urlPath: string) {
+  return (
+    urlPath === "/" ||
+    urlPath === "/login" ||
+    urlPath === "/contacto" ||
+    urlPath === "/admin" ||
+    urlPath.startsWith("/admin/")
+  );
+}
+
 export function serveStatic(app: Express) {
   const distPath = path.resolve(__dirname, "public");
   if (!fs.existsSync(distPath)) {
@@ -77,6 +87,9 @@ export function serveStatic(app: Express) {
        urlPath.startsWith("/domina/")  ? "domina.html"  :
        undefined);
     const htmlFile = mpaFile ?? "_app.html";
+    // The React app only owns these paths; anything else renders its NotFound page,
+    // so send a real 404 status instead of a soft 404 that search engines try to index.
+    if (!mpaFile && !isAppShellPath(urlPath)) res.status(404);
     res.sendFile(path.resolve(distPath, htmlFile));
   });
 }
